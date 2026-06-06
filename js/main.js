@@ -12,12 +12,13 @@ window.addEventListener('DOMContentLoaded', () => {
     game = new Game();
     requestAnimationFrame((time) => game.loop(time));
 
-    // Pobranie elementów DOM dla autoryzacji i debugowania
+    // Pobranie elementów DOM dla autoryzacji i obudowy
     const userStatusText = document.getElementById('userStatusText');
     const btnAuthAction = document.getElementById('btnAuthAction');
-    const btnAdminPanel = document.getElementById('btnAdminPanel');
+    const btnUserAdminPanel = document.getElementById('btnUserAdminPanel');
     const authStatusBar = document.getElementById('authStatusBar');
 
+    // Ekrany autoryzacji
     const authScreen = document.getElementById('authScreen');
     const formLogin = document.getElementById('formLogin');
     const formRegister = document.getElementById('formRegister');
@@ -26,9 +27,17 @@ window.addEventListener('DOMContentLoaded', () => {
     const authMessage = document.getElementById('authMessage');
     const btnBackToMenu = document.getElementById('btnBackToMenu');
 
+    // Ekran zarządzania użytkownikami (nowy panel admina)
+    const userAdminScreen = document.getElementById('userAdminScreen');
+    const userTableBody = document.getElementById('userTableBody');
+    const btnBackFromUserAdmin = document.getElementById('btnBackFromUserAdmin');
+
+    // Ekran debugowania (otwierany z menu pauzy)
     const adminPanelScreen = document.getElementById('adminPanelScreen');
+    const btnPauseDebugPanel = document.getElementById('btnPauseDebugPanel');
     const btnBackFromAdmin = document.getElementById('btnBackFromAdmin');
     const btnDbgMaxUpgrades = document.getElementById('btnDbgMaxUpgrades');
+    const btnDbgJumpWave = document.getElementById('btnDbgJumpWave');
 
     // Kontrolki debugowania
     const dbgToggleEnabled = document.getElementById('dbgToggleEnabled');
@@ -46,15 +55,18 @@ window.addEventListener('DOMContentLoaded', () => {
             btnAuthAction.textContent = 'WYLOGUJ';
             
             if (user.role === 'admin') {
-                btnAdminPanel.style.display = 'inline-block';
+                btnUserAdminPanel.style.display = 'inline-block';
+                if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'block';
             } else {
-                btnAdminPanel.style.display = 'none';
+                btnUserAdminPanel.style.display = 'none';
+                if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'none';
             }
         } else {
             userStatusText.textContent = 'GOSC';
             userStatusText.className = 'cyan';
             btnAuthAction.textContent = 'LOGOWANIE';
-            btnAdminPanel.style.display = 'none';
+            btnUserAdminPanel.style.display = 'none';
+            if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'none';
             
             // Wyłącz tryb debugowania po wylogowaniu
             localStorage.setItem('dbg_enabled', 'false');
@@ -200,9 +212,79 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Otwarcie panelu administratora
-    if (btnAdminPanel) {
-        btnAdminPanel.addEventListener('click', () => {
+    // --- PANEL ZARZĄDZANIA KONTAMI ---
+    if (btnUserAdminPanel) {
+        btnUserAdminPanel.addEventListener('click', () => {
+            if (isAdmin()) {
+                renderUserTable();
+                game.showScreen('userAdminScreen');
+            }
+        });
+    }
+
+    if (btnBackFromUserAdmin) {
+        btnBackFromUserAdmin.addEventListener('click', () => {
+            game.showScreen('menuStartScreen');
+        });
+    }
+
+    function renderUserTable() {
+        const accounts = JSON.parse(localStorage.getItem('arcade_accounts')) || [];
+        const currentUser = getCurrentUser();
+        userTableBody.innerHTML = '';
+        
+        accounts.forEach(acc => {
+            const tr = document.createElement('tr');
+            
+            const tdUser = document.createElement('td');
+            tdUser.textContent = acc.username;
+            
+            const tdRole = document.createElement('td');
+            tdRole.textContent = acc.role.toUpperCase();
+            tdRole.className = acc.role === 'admin' ? 'green' : 'cyan';
+            
+            const tdActions = document.createElement('td');
+            
+            if (acc.username.toLowerCase() !== currentUser.username.toLowerCase()) {
+                const btnToggleRole = document.createElement('button');
+                btnToggleRole.className = 'bezel-btn btn-auth-small glow-cyan';
+                btnToggleRole.textContent = acc.role === 'admin' ? 'DEGRADUJ' : 'PROMUJ';
+                btnToggleRole.style.marginRight = '5px';
+                btnToggleRole.addEventListener('click', () => {
+                    acc.role = acc.role === 'admin' ? 'user' : 'admin';
+                    localStorage.setItem('arcade_accounts', JSON.stringify(accounts));
+                    renderUserTable();
+                    updateAuthUI();
+                });
+                
+                const btnDelete = document.createElement('button');
+                btnDelete.className = 'bezel-btn btn-auth-small glow-pink';
+                btnDelete.textContent = 'USUN';
+                btnDelete.addEventListener('click', () => {
+                    if (confirm(`Czy na pewno chcesz usunac konto ${acc.username}?`)) {
+                        const updatedAccounts = accounts.filter(a => a.username.toLowerCase() !== acc.username.toLowerCase());
+                        localStorage.setItem('arcade_accounts', JSON.stringify(updatedAccounts));
+                        renderUserTable();
+                    }
+                });
+                
+                tdActions.appendChild(btnToggleRole);
+                tdActions.appendChild(btnDelete);
+            } else {
+                tdActions.textContent = '(TY)';
+                tdActions.style.color = '#558855';
+            }
+            
+            tr.appendChild(tdUser);
+            tr.appendChild(tdRole);
+            tr.appendChild(tdActions);
+            userTableBody.appendChild(tr);
+        });
+    }
+
+    // --- PANEL DEBUGOWANIA (TRYB DEBUG - W MENU PAUZY) ---
+    if (btnPauseDebugPanel) {
+        btnPauseDebugPanel.addEventListener('click', () => {
             if (isAdmin()) {
                 initDebugUI();
                 game.showScreen('adminPanelScreen');
@@ -210,14 +292,38 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Powrót z panelu administratora
+    // Powrót z trybu debugowania wraca do PAUZY
     if (btnBackFromAdmin) {
         btnBackFromAdmin.addEventListener('click', () => {
-            game.showScreen('menuStartScreen');
+            game.showScreen('pauseScreen');
         });
     }
 
-    // Uruchomienie maksymalnych ulepszeń w panelu admina
+    // Obsługa teleportacji (Skok do wybranej fali)
+    if (btnDbgJumpWave) {
+        btnDbgJumpWave.addEventListener('click', () => {
+            if (game) {
+                let waveVal = parseInt(dbgStartWave.value);
+                if (isNaN(waveVal) || waveVal < 1) waveVal = 1;
+                if (waveVal > 20) waveVal = 20;
+                game.currentWave = waveVal;
+                
+                audio.playLevelUp();
+                game.initWaveGameplay(); // Uruchamia wybraną falę natychmiast
+                game.showScreen('pauseScreen'); // Wraca do ekranu pauzy (gra jest gotowa w tle)
+                
+                const originalText = btnDbgJumpWave.textContent;
+                btnDbgJumpWave.textContent = 'TELEPORT!';
+                btnDbgJumpWave.disabled = true;
+                setTimeout(() => {
+                    btnDbgJumpWave.textContent = originalText;
+                    btnDbgJumpWave.disabled = false;
+                }, 1000);
+            }
+        });
+    }
+
+    // Uruchomienie maksymalnych ulepszeń w panelu debugowania
     if (btnDbgMaxUpgrades) {
         btnDbgMaxUpgrades.addEventListener('click', () => {
             if (game && game.player) {
@@ -241,19 +347,6 @@ window.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-
-
-    // Zintegrowanie ukrywania i pokazywania paska logowania w zależności od stanu gry
-    // Pasek powinien być widoczny TYLKO w menu startowym, a ukrywany na wszystkich innych ekranach
-    const originalShowScreen = game.showScreen.bind(game);
-    game.showScreen = function(screenId) {
-        originalShowScreen(screenId);
-        if (screenId === 'menuStartScreen') {
-            if (authStatusBar) authStatusBar.style.display = 'flex';
-        } else {
-            if (authStatusBar) authStatusBar.style.display = 'none';
-        }
-    };
 
     // Inicjalizacja interfejsu autoryzacji i debugowania przy starcie
     updateAuthUI();

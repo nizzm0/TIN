@@ -847,25 +847,15 @@ body {
 }
 
 /* ================= SYSTEM KONT I ADMIN PANEL ================= */
-.auth-status-bar {
-    position: absolute;
-    top: 15px;
-    right: 20px;
-    z-index: 15;
+.cabinet-auth-section {
     display: flex;
     align-items: center;
     gap: 10px;
     font-size: 0.55rem;
-    pointer-events: auto; /* Umożliwia klikanie wewnątrz przezroczystego HUDu */
 }
 
 .auth-label {
     color: #8888aa;
-}
-
-.auth-buttons-group {
-    display: flex;
-    gap: 8px;
 }
 
 .btn-auth-small {
@@ -1142,25 +1132,82 @@ input:checked + .retro-slider:before {
     }
 }
 
-/* Wlaczenie przewijania na ekrany autoryzacji i admina */
-#adminPanelScreen, #authScreen {
+/* Wlaczenie przewijania na ekrany autoryzacji, admina i zarzadzania kontami */
+#adminPanelScreen, #authScreen, #userAdminScreen {
     justify-content: flex-start;
     padding-top: 25px;
     overflow-y: auto;
 }
 
-#adminPanelScreen::-webkit-scrollbar, #authScreen::-webkit-scrollbar {
+#adminPanelScreen::-webkit-scrollbar, #authScreen::-webkit-scrollbar, #userAdminScreen::-webkit-scrollbar {
     width: 6px;
 }
-#adminPanelScreen::-webkit-scrollbar-track, #authScreen::-webkit-scrollbar-track {
+#adminPanelScreen::-webkit-scrollbar-track, #authScreen::-webkit-scrollbar-track, #userAdminScreen::-webkit-scrollbar-track {
     background: rgba(0,0,0,0.3);
 }
-#adminPanelScreen::-webkit-scrollbar-thumb {
+#adminPanelScreen::-webkit-scrollbar-thumb, #userAdminScreen::-webkit-scrollbar-thumb {
     background: var(--neon-green);
     border-radius: 3px;
 }
 #authScreen::-webkit-scrollbar-thumb {
     background: var(--neon-cyan);
     border-radius: 3px;
+}
+
+/* Style dla tabeli zarzadzania uzytkownikami */
+.user-list-container {
+    width: 100%;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 2px solid #1f3d1f;
+    border-radius: 8px;
+    background-color: rgba(5, 10, 5, 0.7);
+    margin: 10px 0;
+}
+
+.user-list-container::-webkit-scrollbar {
+    width: 6px;
+}
+.user-list-container::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+}
+.user-list-container::-webkit-scrollbar-thumb {
+    background: var(--neon-green);
+    border-radius: 3px;
+}
+
+.user-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.5rem;
+    text-align: left;
+}
+
+.user-table th, .user-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #1f3d1f;
+}
+
+.user-table th {
+    background-color: rgba(20, 40, 20, 0.9);
+    color: #88cc88;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    letter-spacing: 1px;
+}
+
+.user-table td {
+    color: #fff;
+}
+
+.user-table tr:hover {
+    background-color: rgba(57, 255, 20, 0.05);
+}
+
+.dbg-wave-selector-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
 }
 

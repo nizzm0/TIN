@@ -183,7 +183,7 @@ export class Game {
         const screens = [
             'menuStartScreen', 'transitionScreen', 'shopScreen', 
             'pauseScreen', 'gameOverScreen', 'victoryScreen',
-            'authScreen', 'adminPanelScreen'
+            'authScreen', 'adminPanelScreen', 'userAdminScreen'
         ];
         screens.forEach(id => {
             const el = document.getElementById(id);
@@ -201,7 +201,7 @@ export class Game {
         const screens = [
             'menuStartScreen', 'transitionScreen', 'shopScreen', 
             'pauseScreen', 'gameOverScreen', 'victoryScreen',
-            'authScreen', 'adminPanelScreen'
+            'authScreen', 'adminPanelScreen', 'userAdminScreen'
         ];
         screens.forEach(id => {
             document.getElementById(id).style.display = 'none';
