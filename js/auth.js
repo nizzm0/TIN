@@ -60,11 +60,13 @@ export async function register(username, password) {
         return { success: true, message: 'Konto zostalo pomyslnie utworzone!' };
     } catch (err) {
         console.error("Registration error:", err);
-        let msg = 'Wystapil blad podczas rejestracji!';
+        let msg = `Wystapil blad podczas rejestracji! (${err.code || err.message || 'nieznany'})`;
         if (err.code === 'auth/email-already-in-use') {
             msg = 'Ta nazwa uzytkownika jest juz zajeta!';
         } else if (err.code === 'auth/weak-password') {
             msg = 'Haslo jest zbyt slabe!';
+        } else if (err.code === 'auth/operation-not-allowed') {
+            msg = 'Logowanie haslem jest wylaczone w konsoli Firebase!';
         }
         return { success: false, message: msg };
     }
@@ -109,9 +111,11 @@ export async function login(username, password) {
         }
     } catch (err) {
         console.error("Login error:", err);
-        let msg = 'Bledny login lub haslo!';
+        let msg = `Bledny login lub haslo! (${err.code || err.message || 'nieznany'})`;
         if (err.code === 'auth/user-not-found' || err.code === 'auth/wrong-password' || err.code === 'auth/invalid-credential') {
             msg = 'Bledny login lub haslo!';
+        } else if (err.code === 'auth/operation-not-allowed') {
+            msg = 'Logowanie haslem jest wylaczone w konsoli Firebase!';
         }
         return { success: false, message: msg };
     }
