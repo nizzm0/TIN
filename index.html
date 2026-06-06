@@ -63,8 +63,21 @@
 
                 <!-- 1. Ekran Startowy (MENU_START) -->
                 <div class="screen-overlay active" id="menuStartScreen">
-                    <div class="high-score-display">
-                        NAJLEPSZY WYNIK: <span id="highScoreVal" class="cyan">00000</span>
+                    <div class="leaderboard-container">
+                        <h3 class="leaderboard-title yellow">TABELA LIDERÓW</h3>
+                        <table class="leaderboard-table">
+                            <thead>
+                                <tr>
+                                    <th>POZ</th>
+                                    <th>PILOT</th>
+                                    <th>FALA</th>
+                                    <th>WYNIK</th>
+                                </tr>
+                            </thead>
+                            <tbody id="leaderboardBody">
+                                <!-- Wiersze rankingu generowane dynamicznie przez JS -->
+                            </tbody>
+                        </table>
                     </div>
 
                     <div class="menu-options">
@@ -216,7 +229,7 @@
                             <div class="admin-option">
                                 <span class="option-label">SKOCZ DO FALI</span>
                                 <div class="dbg-wave-selector-group">
-                                    <input type="number" class="dbg-num-input" id="dbgStartWave" min="1" max="20" value="1">
+                                    <input type="number" class="dbg-num-input" id="dbgStartWave" min="1" max="999" value="1">
                                     <button class="bezel-btn btn-auth-small glow-green" id="btnDbgJumpWave">TELEPORT</button>
                                 </div>
                             </div>

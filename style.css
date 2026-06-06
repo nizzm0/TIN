@@ -280,10 +280,47 @@ body {
     text-shadow: 0 0 5px #fff;
 }
 
-.high-score-display {
-    font-size: 1.6cqw;
-    margin-bottom: 4cqw;
-    letter-spacing: 0.3cqw;
+/* TABELA LIDERÓW (LEADERBOARD) NA EKRANIE STARTOWYM */
+.leaderboard-container {
+    margin: 1cqw 0 3cqw 0;
+    width: 90%;
+    max-width: 600px;
+    background-color: rgba(11, 15, 25, 0.9);
+    border: 2px solid var(--neon-cyan);
+    border-radius: 8px;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.2), inset 0 0 10px rgba(0, 243, 255, 0.1);
+    padding: 1.5cqw;
+}
+
+.leaderboard-title {
+    font-size: 2cqw;
+    letter-spacing: 0.2cqw;
+    margin: 0 0 1.2cqw 0;
+    font-weight: 900;
+}
+
+.leaderboard-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 1.3cqw;
+}
+
+.leaderboard-table th, 
+.leaderboard-table td {
+    padding: 0.8cqw 0.6cqw;
+    text-align: center;
+    border-bottom: 1px solid rgba(0, 243, 255, 0.15);
+}
+
+.leaderboard-table th {
+    color: var(--neon-green);
+    border-bottom: 2px solid var(--neon-green);
+    font-weight: bold;
+    letter-spacing: 0.1cqw;
+}
+
+.leaderboard-table tr:last-child td {
+    border-bottom: none;
 }
 
 .menu-options {

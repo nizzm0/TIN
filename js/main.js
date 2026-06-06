@@ -91,7 +91,7 @@ window.addEventListener('DOMContentLoaded', () => {
         dbgStartWave.addEventListener('change', (e) => {
             let val = parseInt(e.target.value);
             if (isNaN(val) || val < 1) val = 1;
-            if (val > 20) val = 20;
+            if (val > 999) val = 999;
             e.target.value = val;
             localStorage.setItem('dbg_start_wave', val);
         });
@@ -305,7 +305,7 @@ window.addEventListener('DOMContentLoaded', () => {
             if (game) {
                 let waveVal = parseInt(dbgStartWave.value);
                 if (isNaN(waveVal) || waveVal < 1) waveVal = 1;
-                if (waveVal > 20) waveVal = 20;
+                if (waveVal > 999) waveVal = 999;
                 game.currentWave = waveVal;
                 
                 audio.playLevelUp();

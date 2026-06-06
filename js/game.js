@@ -58,7 +58,7 @@ export class Game {
 
         this.prePauseState = null;
         this.spaceReleased = true;
-        this.updateHighScoreUI();
+        this.updateLeaderboardUI();
         this.initUIEvents();
     }
 
@@ -210,9 +210,65 @@ export class Game {
         });
     }
 
-    updateHighScoreUI() {
-        const hsFormatted = String(this.highScore).padStart(5, '0');
-        document.getElementById('highScoreVal').textContent = hsFormatted;
+    updateLeaderboardUI() {
+        const tbody = document.getElementById('leaderboardBody');
+        if (!tbody) return;
+        tbody.innerHTML = '';
+        
+        const leaderboard = JSON.parse(localStorage.getItem('arcade_leaderboard') || '[]');
+        
+        // Fallback do klasycznych rekordów retro
+        const displayData = leaderboard.length > 0 ? leaderboard : [
+            { username: 'NEO', wave: 20, score: 10000 },
+            { username: 'MTRX', wave: 15, score: 7500 },
+            { username: 'ALF', wave: 10, score: 5000 },
+            { username: 'PILOT', wave: 5, score: 2500 },
+            { username: 'GOSC', wave: 1, score: 100 }
+        ];
+
+        displayData.slice(0, 5).forEach((entry, idx) => {
+            const tr = document.createElement('tr');
+            
+            // Kolorowanie pozycji liderów w stylu retro
+            let userClass = 'cyan';
+            if (idx === 0) userClass = 'yellow';
+            else if (idx === 1) userClass = 'green';
+            else if (idx === 2) userClass = 'pink';
+
+            tr.innerHTML = `
+                <td>${idx + 1}</td>
+                <td class="${userClass}">${entry.username.toUpperCase()}</td>
+                <td>${entry.wave}</td>
+                <td class="yellow">${String(entry.score).padStart(5, '0')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    saveScoreToLeaderboard() {
+        const user = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
+        const name = user ? user.username : 'GOSC';
+        
+        const entry = {
+            username: name,
+            wave: this.currentWave,
+            score: this.score,
+            date: Date.now()
+        };
+        
+        let leaderboard = JSON.parse(localStorage.getItem('arcade_leaderboard') || '[]');
+        leaderboard.push(entry);
+        leaderboard.sort((a, b) => b.score - a.score);
+        leaderboard = leaderboard.slice(0, 10);
+        localStorage.setItem('arcade_leaderboard', JSON.stringify(leaderboard));
+        
+        // Kompatybilność wsteczna z starym systemem high score
+        if (this.score > this.highScore) {
+            this.highScore = this.score;
+            localStorage.setItem('arcade_highscore', this.highScore);
+        }
+        
+        this.updateLeaderboardUI();
     }
 
     startGame(mode) {
@@ -439,11 +495,7 @@ export class Game {
         document.getElementById('vicScore').textContent = this.score;
         document.getElementById('vicAliens').textContent = "Wszystkich!";
         
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            localStorage.setItem('arcade_highscore', this.highScore);
-            this.updateHighScoreUI();
-        }
+        this.saveScoreToLeaderboard();
     }
 
     renderShop() {
@@ -639,11 +691,7 @@ export class Game {
             status.textContent = "Kosmici dotarli do powierzchni Ziemie!";
         }
 
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            localStorage.setItem('arcade_highscore', this.highScore);
-            this.updateHighScoreUI();
-        }
+        this.saveScoreToLeaderboard();
     }
 
     restartGame() {
