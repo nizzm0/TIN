@@ -151,6 +151,15 @@ export function isAdmin() {
 }
 
 /**
+ * Sprawdza, czy zalogowany użytkownik ma uprawnienia debugera/testera (admin lub tester).
+ * @returns {boolean} True jeśli admin lub tester
+ */
+export function isTester() {
+    const user = getCurrentUser();
+    return user !== null && (user.role === 'admin' || user.role === 'tester');
+}
+
+/**
  * Pobiera listę wszystkich kont użytkowników z Firestore.
  * @returns {Promise<Array>} Lista użytkowników
  */

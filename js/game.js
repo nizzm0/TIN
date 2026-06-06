@@ -14,7 +14,8 @@ import {
     limit,
     doc,
     getDoc,
-    setDoc
+    setDoc,
+    deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
 
 // --- GŁÓWNA KLASA GRY ---
@@ -96,11 +97,11 @@ export class Game {
                 this.togglePause();
             }
 
-            // Klawisz K - natychmiastowe zniszczenie kosmitów (dostępny dla admina)
+            // Klawisz K - natychmiastowe zniszczenie kosmitów (dostępny dla admina/testera)
             if (e.code === 'KeyK') {
                 const sessionUser = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
-                const isAdmin = sessionUser && sessionUser.role === 'admin';
-                if (isAdmin && this.currentState === this.states.PLAYING) {
+                const hasDebug = sessionUser && (sessionUser.role === 'admin' || sessionUser.role === 'tester');
+                if (hasDebug && this.currentState === this.states.PLAYING) {
                     e.preventDefault();
                     this.invaders.forEach(inv => inv.isAlive = false);
                     audio.playExplosion('player');
@@ -307,6 +308,28 @@ export class Game {
             await this.updateLeaderboardUI();
         } catch (err) {
             console.error("Error saving score to leaderboard:", err);
+        }
+    }
+
+    async clearLeaderboard() {
+        try {
+            const querySnapshot = await getDocs(collection(db, 'leaderboard'));
+            const deletePromises = [];
+            querySnapshot.forEach((docSnap) => {
+                deletePromises.push(deleteDoc(doc(db, 'leaderboard', docSnap.id)));
+            });
+            await Promise.all(deletePromises);
+            console.log("Leaderboard cleared successfully in Firestore.");
+            
+            // Czyszczenie lokalnego najwyższego wyniku
+            this.highScore = 0;
+            localStorage.removeItem('arcade_highscore');
+            
+            await this.updateLeaderboardUI();
+            return { success: true };
+        } catch (err) {
+            console.error("Error clearing leaderboard:", err);
+            return { success: false, message: err.message };
         }
     }
 

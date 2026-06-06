@@ -1,5 +1,5 @@
 import { Game } from './game.js';
-import { initAuth, getCurrentUser, login, register, logout, isAdmin, getUsersList, updateUserRole, deleteUser } from './auth.js';
+import { initAuth, getCurrentUser, login, register, logout, isAdmin, isTester, getUsersList, updateUserRole, deleteUser } from './auth.js';
 import { audio } from './audio.js';
 
 let game;
@@ -31,6 +31,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const userAdminScreen = document.getElementById('userAdminScreen');
     const userTableBody = document.getElementById('userTableBody');
     const btnBackFromUserAdmin = document.getElementById('btnBackFromUserAdmin');
+    const btnClearLeaderboard = document.getElementById('btnClearLeaderboard');
 
     // Ekran debugowania (otwierany z menu pauzy)
     const adminPanelScreen = document.getElementById('adminPanelScreen');
@@ -50,14 +51,29 @@ window.addEventListener('DOMContentLoaded', () => {
         const user = getCurrentUser();
         if (user) {
             userStatusText.textContent = user.username.toUpperCase();
-            userStatusText.className = user.role === 'admin' ? 'green' : 'cyan';
+            
+            // Kolor statusu pilota na obudowie w zależności od roli
+            if (user.role === 'admin') {
+                userStatusText.className = 'green';
+            } else if (user.role === 'tester') {
+                userStatusText.className = 'yellow';
+            } else {
+                userStatusText.className = 'cyan';
+            }
+            
             btnAuthAction.textContent = 'WYLOGUJ';
             
+            // Przycisk PANEL ADMINA na obudowie widoczny tylko dla admina
             if (user.role === 'admin') {
                 btnUserAdminPanel.style.display = 'inline-block';
-                if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'block';
             } else {
                 btnUserAdminPanel.style.display = 'none';
+            }
+            
+            // Tryb debugowania w grze dostępny dla admina i testera
+            if (user.role === 'admin' || user.role === 'tester') {
+                if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'block';
+            } else {
                 if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'none';
             }
         } else {
@@ -236,6 +252,21 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    if (btnClearLeaderboard) {
+        btnClearLeaderboard.addEventListener('click', async () => {
+            if (confirm("Czy na pewno chcesz wyczyscic cala tabele liderow w chmurze? Ta operacja jest nieodwracalna!")) {
+                btnClearLeaderboard.disabled = true;
+                const res = await game.clearLeaderboard();
+                if (res.success) {
+                    alert("Tabela liderow zostala wyczyszczona!");
+                } else {
+                    alert("Blad: " + res.message);
+                }
+                btnClearLeaderboard.disabled = false;
+            }
+        });
+    }
+
     async function renderUserTable() {
         userTableBody.innerHTML = '<tr><td colspan="3" style="color: var(--neon-cyan); padding: 10px 0;">Pobieranie kont z chmury...</td></tr>';
         
@@ -256,27 +287,83 @@ window.addEventListener('DOMContentLoaded', () => {
             
             const tdRole = document.createElement('td');
             tdRole.textContent = acc.role.toUpperCase();
-            tdRole.className = acc.role === 'admin' ? 'green' : 'cyan';
+            if (acc.role === 'admin') {
+                tdRole.className = 'green';
+            } else if (acc.role === 'tester') {
+                tdRole.className = 'yellow';
+            } else {
+                tdRole.className = 'cyan';
+            }
             
             const tdActions = document.createElement('td');
             
             if (acc.username.toLowerCase() !== currentUser.username.toLowerCase()) {
-                const btnToggleRole = document.createElement('button');
-                btnToggleRole.className = 'bezel-btn btn-auth-small glow-cyan';
-                btnToggleRole.textContent = acc.role === 'admin' ? 'DEGRADUJ' : 'PROMUJ';
-                btnToggleRole.style.marginRight = '5px';
-                btnToggleRole.addEventListener('click', async () => {
-                    const nextRole = acc.role === 'admin' ? 'user' : 'admin';
-                    btnToggleRole.disabled = true;
-                    const res = await updateUserRole(acc.username, nextRole);
-                    if (res.success) {
-                        await renderUserTable();
-                        updateAuthUI();
-                    } else {
-                        alert("Blad: " + res.message);
-                        btnToggleRole.disabled = false;
-                    }
-                });
+                const btnPromote = document.createElement('button');
+                btnPromote.className = 'bezel-btn btn-auth-small glow-cyan';
+                btnPromote.style.marginRight = '5px';
+                
+                const btnDemote = document.createElement('button');
+                btnDemote.className = 'bezel-btn btn-auth-small glow-pink';
+                btnDemote.style.marginRight = '5px';
+                
+                if (acc.role === 'user') {
+                    btnPromote.textContent = 'PROMUJ (TESTER)';
+                    btnPromote.addEventListener('click', async () => {
+                        btnPromote.disabled = true;
+                        const res = await updateUserRole(acc.username, 'tester');
+                        if (res.success) {
+                            await renderUserTable();
+                            updateAuthUI();
+                        } else {
+                            alert("Blad: " + res.message);
+                            btnPromote.disabled = false;
+                        }
+                    });
+                    tdActions.appendChild(btnPromote);
+                } else if (acc.role === 'tester') {
+                    btnDemote.textContent = 'DEGRADUJ (USER)';
+                    btnDemote.addEventListener('click', async () => {
+                        btnDemote.disabled = true;
+                        const res = await updateUserRole(acc.username, 'user');
+                        if (res.success) {
+                            await renderUserTable();
+                            updateAuthUI();
+                        } else {
+                            alert("Blad: " + res.message);
+                            btnDemote.disabled = false;
+                        }
+                    });
+                    
+                    btnPromote.textContent = 'PROMUJ (ADMIN)';
+                    btnPromote.addEventListener('click', async () => {
+                        btnPromote.disabled = true;
+                        const res = await updateUserRole(acc.username, 'admin');
+                        if (res.success) {
+                            await renderUserTable();
+                            updateAuthUI();
+                        } else {
+                            alert("Blad: " + res.message);
+                            btnPromote.disabled = false;
+                        }
+                    });
+                    
+                    tdActions.appendChild(btnDemote);
+                    tdActions.appendChild(btnPromote);
+                } else if (acc.role === 'admin') {
+                    btnDemote.textContent = 'DEGRADUJ (TESTER)';
+                    btnDemote.addEventListener('click', async () => {
+                        btnDemote.disabled = true;
+                        const res = await updateUserRole(acc.username, 'tester');
+                        if (res.success) {
+                            await renderUserTable();
+                            updateAuthUI();
+                        } else {
+                            alert("Blad: " + res.message);
+                            btnDemote.disabled = false;
+                        }
+                    });
+                    tdActions.appendChild(btnDemote);
+                }
                 
                 const btnDelete = document.createElement('button');
                 btnDelete.className = 'bezel-btn btn-auth-small glow-pink';
@@ -293,8 +380,6 @@ window.addEventListener('DOMContentLoaded', () => {
                         }
                     }
                 });
-                
-                tdActions.appendChild(btnToggleRole);
                 tdActions.appendChild(btnDelete);
             } else {
                 tdActions.textContent = '(TY)';
@@ -311,7 +396,7 @@ window.addEventListener('DOMContentLoaded', () => {
     // --- PANEL DEBUGOWANIA (TRYB DEBUG - W MENU PAUZY) ---
     if (btnPauseDebugPanel) {
         btnPauseDebugPanel.addEventListener('click', () => {
-            if (isAdmin()) {
+            if (isTester()) {
                 initDebugUI();
                 game.currentState = game.states.ADMIN_PANEL;
                 game.showScreen('adminPanelScreen');
