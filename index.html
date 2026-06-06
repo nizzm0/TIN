@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Space Invaders - Rogue-Lite Arcade</title>
+    <!-- Czcionka retro z Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Kontener całej strony - Automat retro -->
+    <div class="cabinet-container">
+        <!-- Tytuł automatu -->
+        <header class="cabinet-header">
+            <h1 class="cabinet-logo">SPACE INVADER<span class="pulse">S</span></h1>
+            <div class="cabinet-tagline">ROGUE-LITE ARCADE</div>
+        </header>
+
+        <!-- Obudowa ekranu CRT -->
+        <div class="arcade-bezel">
+            <!-- Ekran CRT -->
+            <div class="crt-screen" id="crtScreen">
+                <!-- Efekty wizualne CRT -->
+                <div class="crt-scanlines"></div>
+                <div class="crt-flicker"></div>
+                <div class="crt-glare"></div>
+
+                <!-- HUD Gry (Widoczny w trakcie gry i pauzy) -->
+                <div class="hud" id="hud" style="display: none;">
+                    <div class="hud-item score-box">
+                        <div class="label">PUNKTY</div>
+                        <div class="val" id="scoreVal">00000</div>
+                    </div>
+                    <div class="hud-item wave-box">
+                        <div class="label">FALA</div>
+                        <div class="val" id="waveVal">1/20</div>
+                    </div>
+                    <div class="hud-item timer-box">
+                        <div class="label">CZAS</div>
+                        <div class="val" id="timerVal">45s</div>
+                    </div>
+                    <div class="hud-item credits-box">
+                        <div class="label">KREDYTY</div>
+                        <div class="val yellow" id="creditsVal">0 $</div>
+                    </div>
+                    <div class="hud-item lives-box">
+                        <div class="label">ZYCIA</div>
+                        <div class="lives-icons" id="livesContainer">
+                            <!-- Serduszka/Statki generowane dynamicznie -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Płótno Canvas -->
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+                <!-- ================= EKRAMY STANÓW GRY (OVERLAYS) ================= -->
+
+                <!-- 1. Ekran Startowy (MENU_START) -->
+                <div class="screen-overlay active" id="menuStartScreen">
+                    <div class="high-score-display">
+                        NAJLEPSZY WYNIK: <span id="highScoreVal" class="cyan">00000</span>
+                    </div>
+
+                    <div class="menu-options">
+                        <button class="btn-retro glow-green" id="btnCampaign">
+                            <span class="btn-title">KAMPANIA</span>
+                            <span class="btn-desc">20 trudniejszych fal do pokonania</span>
+                        </button>
+                        <button class="btn-retro glow-cyan" id="btnInfinite">
+                            <span class="btn-title">NIESKONCZONOSC</span>
+                            <span class="btn-desc">Graj bez konca z ulepszeniami</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 2. Ekran Przejścia Fali (LEVEL_TRANSITION) -->
+                <div class="screen-overlay" id="transitionScreen" style="display: none;">
+                    <div class="transition-content">
+                        <h2 class="neon-text-pulse green" id="transitionTitle">FALA 1</h2>
+                        <p class="transition-subtitle" id="transitionDesc">PRZYGOTUJ SIE...</p>
+                        <div class="loading-bar-container">
+                            <div class="loading-bar" id="transitionProgress"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Ekran Sklepu (SHOP) -->
+                <div class="screen-overlay" id="shopScreen" style="display: none;">
+                    <div class="shop-header">
+                        <h2 class="neon-text glow-yellow">SKLEP Z MODYFIKATORAMI</h2>
+                        <div class="shop-currency">
+                            TWÓJ PORTFEL: <span id="shopCredits" class="yellow">0 $</span>
+                        </div>
+                    </div>
+
+                    <div class="shop-grid" id="shopGrid">
+                        <!-- Karty ulepszeń generowane dynamicznie przez JS -->
+                    </div>
+
+                    <div class="shop-footer">
+                        <button class="btn-retro btn-next-wave glow-green" id="btnNextWave">
+                            URUCHOM NASTĘPNĄ FALĘ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 4. Ekran Pauzy (PAUSED) -->
+                <div class="screen-overlay" id="pauseScreen" style="display: none;">
+                    <div class="pause-content">
+                        <h2 class="neon-text glow-cyan animate-pulse">PAUZA</h2>
+                        <p class="pause-sub">Gra jest wstrzymana</p>
+                        <div class="pause-buttons">
+                            <button class="btn-retro btn-small glow-cyan" id="btnResume">WZNOW [ESC]</button>
+                            <button class="btn-retro btn-small glow-pink" id="btnExitToMenu">MENU GLOWNE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5. Ekran Game Over (GAME_OVER) -->
+                <div class="screen-overlay" id="gameOverScreen" style="display: none;">
+                    <div class="game-over-content">
+                        <h2 class="neon-text glow-pink red">KONIEC GRY</h2>
+                        <p class="game-over-status" id="gameOverStatus">Kosmici opanowali Ziemie!</p>
+                        
+                        <div class="stats-panel">
+                            <div class="stat-row">ZDOBYTE PUNKTY: <span class="cyan" id="finalScore">0</span></div>
+                            <div class="stat-row">POKONANE FALE: <span class="green" id="finalWaves">0</span></div>
+                            <div class="stat-row">WALUTA NA KONIEC: <span class="yellow" id="finalCredits">0 $</span></div>
+                        </div>
+
+                        <div class="game-over-buttons">
+                            <button class="btn-retro glow-green" id="btnRestart">ZAGRAJ PONOWNIE</button>
+                            <button class="btn-retro glow-pink" id="btnMenuFromOver">MENU GLOWNE</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 6. Ekran Zwycięstwa (VICTORY) -->
+                <div class="screen-overlay" id="victoryScreen" style="display: none;">
+                    <div class="victory-content">
+                        <h2 class="neon-text glow-green green">ZWYCIESTWO!</h2>
+                        <p class="victory-sub">Obroniles galaktyke i ukonczyles wszystkie 20 fal!</p>
+
+                        <div class="stats-panel">
+                            <div class="stat-row">KOŃCOWY WYNIK: <span class="cyan" id="vicScore">0</span></div>
+                            <div class="stat-row">ZESTRZELENI KOSMICI: <span class="green" id="vicAliens">0</span></div>
+                            <div class="stat-row">PROFIL OCALONEGO: <span class="yellow" id="vicLevel">Mistrz Obrony</span></div>
+                        </div>
+
+                        <div class="victory-buttons">
+                            <button class="btn-retro glow-green" id="btnVictoryInfinite">GRAJ W NIESKONCZONOSC</button>
+                            <button class="btn-retro glow-pink" id="btnMenuFromVic">MENU GLOWNE</button>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Panel Kontrolny / Przyciski na obudowie automatu -->
+        <div class="cabinet-controls">
+            <!-- Przyciski rozmieszczone symetrycznie po przeciwległych stronach -->
+            <button class="bezel-btn" id="btnMute" title="Wycisz/Włącz dźwięk">
+                <span id="muteIcon">🔊</span> AUDIO
+            </button>
+            <button class="bezel-btn" id="btnPauseBezel" title="Pauza">
+                ⏸ PAUZA
+            </button>
+        </div>
+
+        <!-- Wirtualny kontroler dla urządzeń mobilnych (widoczny tylko na dotykowych) -->
+        <div class="mobile-controller" id="mobileController">
+            <div class="d-pad">
+                <button class="mobile-btn" id="btnLeft" type="button">◀</button>
+                <button class="mobile-btn" id="btnRight" type="button">▶</button>
+            </div>
+            <div class="action-pad">
+                <button class="mobile-btn fire-btn" id="btnFire" type="button">PAL!</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Skrypt gry jako moduł ES6 -->
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
