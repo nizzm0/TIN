@@ -242,15 +242,15 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
     // Zintegrowanie ukrywania i pokazywania paska logowania w zależności od stanu gry
-    // Pasek powinien być widoczny w menu startowym, a ukrywany podczas samej rozgrywki
+    // Pasek powinien być widoczny TYLKO w menu startowym, a ukrywany na wszystkich innych ekranach
     const originalShowScreen = game.showScreen.bind(game);
     game.showScreen = function(screenId) {
         originalShowScreen(screenId);
         if (screenId === 'menuStartScreen') {
             if (authStatusBar) authStatusBar.style.display = 'flex';
-        } else if (screenId !== 'authScreen' && screenId !== 'adminPanelScreen') {
-            // Ukryj pasek statusu w czasie gry, pauzy, sklepu, game over i zwycięstwa
+        } else {
             if (authStatusBar) authStatusBar.style.display = 'none';
         }
     };

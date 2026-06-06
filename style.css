@@ -886,6 +886,7 @@ body {
     flex-direction: column;
     gap: 20px;
     box-shadow: 0 0 20px rgba(0, 243, 255, 0.1);
+    margin-bottom: 25px;
 }
 
 .auth-tabs {
@@ -988,6 +989,7 @@ body {
     flex-direction: column;
     gap: 20px;
     box-shadow: 0 0 20px rgba(57, 255, 20, 0.1);
+    margin-bottom: 25px;
 }
 
 .admin-subtitle {
@@ -1138,5 +1140,27 @@ input:checked + .retro-slider:before {
     .option-label {
         font-size: 0.45rem;
     }
+}
+
+/* Wlaczenie przewijania na ekrany autoryzacji i admina */
+#adminPanelScreen, #authScreen {
+    justify-content: flex-start;
+    padding-top: 25px;
+    overflow-y: auto;
+}
+
+#adminPanelScreen::-webkit-scrollbar, #authScreen::-webkit-scrollbar {
+    width: 6px;
+}
+#adminPanelScreen::-webkit-scrollbar-track, #authScreen::-webkit-scrollbar-track {
+    background: rgba(0,0,0,0.3);
+}
+#adminPanelScreen::-webkit-scrollbar-thumb {
+    background: var(--neon-green);
+    border-radius: 3px;
+}
+#authScreen::-webkit-scrollbar-thumb {
+    background: var(--neon-cyan);
+    border-radius: 3px;
 }
 
