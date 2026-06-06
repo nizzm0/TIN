@@ -32,6 +32,11 @@ window.addEventListener('DOMContentLoaded', () => {
     const userTableBody = document.getElementById('userTableBody');
     const btnBackFromUserAdmin = document.getElementById('btnBackFromUserAdmin');
     const btnClearLeaderboard = document.getElementById('btnClearLeaderboard');
+    const btnToggleManageLeaderboard = document.getElementById('btnToggleManageLeaderboard');
+    const userAdminSubtitle = document.getElementById('userAdminSubtitle');
+    const userListContainer = document.getElementById('userListContainer');
+    const leaderboardManageContainer = document.getElementById('leaderboardManageContainer');
+    const leaderboardManageTableBody = document.getElementById('leaderboardManageTableBody');
 
     // Ekran debugowania (otwierany z menu pauzy)
     const adminPanelScreen = document.getElementById('adminPanelScreen');
@@ -45,6 +50,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const dbgToggleGodMode = document.getElementById('dbgToggleGodMode');
     const dbgToggleInfCredits = document.getElementById('dbgToggleInfCredits');
     const dbgToggleAutofire = document.getElementById('dbgToggleAutofire');
+
+    let isManagingLeaderboard = false;
+
+    function resetAdminPanelTabs() {
+        isManagingLeaderboard = false;
+        if (userAdminSubtitle) userAdminSubtitle.textContent = 'ZAREJESTROWANI PILOCI';
+        if (userListContainer) userListContainer.style.display = 'block';
+        if (leaderboardManageContainer) leaderboardManageContainer.style.display = 'none';
+        if (btnToggleManageLeaderboard) btnToggleManageLeaderboard.textContent = 'ZARZADZAJ WYNIKAMI';
+    }
 
     // Aktualizacja widoku statusu zalogowanego użytkownika
     function updateAuthUI() {
@@ -72,6 +87,13 @@ window.addEventListener('DOMContentLoaded', () => {
                 btnUserAdminPanel.style.display = 'none';
             }
             
+            // Przycisk ZARZADZAJ WYNIKAMI widoczny tylko dla wlasciciela (owner)
+            if (isOwner()) {
+                if (btnToggleManageLeaderboard) btnToggleManageLeaderboard.style.display = 'inline-block';
+            } else {
+                if (btnToggleManageLeaderboard) btnToggleManageLeaderboard.style.display = 'none';
+            }
+            
             // Tryb debugowania w grze dostępny dla testera, admina i ownera
             if (isTester()) {
                 if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'block';
@@ -83,7 +105,10 @@ window.addEventListener('DOMContentLoaded', () => {
             userStatusText.className = 'cyan';
             btnAuthAction.textContent = 'LOGOWANIE';
             btnUserAdminPanel.style.display = 'none';
+            if (btnToggleManageLeaderboard) btnToggleManageLeaderboard.style.display = 'none';
             if (btnPauseDebugPanel) btnPauseDebugPanel.style.display = 'none';
+            
+            resetAdminPanelTabs();
             
             // Wyłącz ulepszenia debugowania po wylogowaniu
             localStorage.removeItem('dbg_enabled');
@@ -250,7 +275,29 @@ window.addEventListener('DOMContentLoaded', () => {
 
     if (btnBackFromUserAdmin) {
         btnBackFromUserAdmin.addEventListener('click', () => {
+            resetAdminPanelTabs();
             game.showScreen('menuStartScreen');
+        });
+    }
+
+    if (btnToggleManageLeaderboard) {
+        btnToggleManageLeaderboard.addEventListener('click', async () => {
+            if (!isOwner()) return;
+            
+            isManagingLeaderboard = !isManagingLeaderboard;
+            if (isManagingLeaderboard) {
+                userAdminSubtitle.textContent = 'EDYCJA TABELI LIDEROW';
+                userListContainer.style.display = 'none';
+                leaderboardManageContainer.style.display = 'block';
+                btnToggleManageLeaderboard.textContent = 'ZARZADZAJ PILOTAMI';
+                await renderLeaderboardManageTable();
+            } else {
+                userAdminSubtitle.textContent = 'ZAREJESTROWANI PILOCI';
+                userListContainer.style.display = 'block';
+                leaderboardManageContainer.style.display = 'none';
+                btnToggleManageLeaderboard.textContent = 'ZARZADZAJ WYNIKAMI';
+                await renderUserTable();
+            }
         });
     }
 
@@ -261,6 +308,9 @@ window.addEventListener('DOMContentLoaded', () => {
                 const res = await game.clearLeaderboard();
                 if (res.success) {
                     alert("Tabela liderow zostala wyczyszczona!");
+                    if (isManagingLeaderboard) {
+                        await renderLeaderboardManageTable();
+                    }
                 } else {
                     alert("Blad: " + res.message);
                 }
@@ -412,6 +462,136 @@ window.addEventListener('DOMContentLoaded', () => {
             tr.appendChild(tdRole);
             tr.appendChild(tdActions);
             userTableBody.appendChild(tr);
+        });
+    }
+
+    // Pomocnicza funkcja zwracająca punkty za kosmitów dla danej fali
+    function getBaseInvaderPointsForWave(w) {
+        if (w === 1) return 550;
+        if (w === 2) return 660;
+        if (w === 3) return 770;
+        if (w === 4) return 880;
+        if (w === 5) return 990;
+        if (w === 6) return 1210;
+        if (w === 7) return 1320;
+        if (w === 8) return 1430;
+        if (w === 9) return 1540;
+        if (w === 10) return 1650;
+        if (w === 11) return 1760;
+        if (w === 12) return 1870;
+        if (w === 13) return 1980;
+        if (w === 14) return 2090;
+        return 2200; // 15+
+    }
+
+    // Oblicza min/max score dla fali
+    function getScoreRangeForWave(wave) {
+        let completedBase = 0;
+        for (let i = 1; i < wave; i++) {
+            completedBase += getBaseInvaderPointsForWave(i);
+        }
+        
+        const minScore = completedBase;
+        const currentWaveMaxEnemies = getBaseInvaderPointsForWave(wave) - 10;
+        const maxTimeBonus = (wave - 1) * 450;
+        const maxScore = completedBase + maxTimeBonus + currentWaveMaxEnemies;
+        
+        return { min: minScore, max: maxScore };
+    }
+
+    async function renderLeaderboardManageTable() {
+        leaderboardManageTableBody.innerHTML = '<tr><td colspan="4" style="color: var(--neon-cyan); padding: 10px 0;">Pobieranie wynikow...</td></tr>';
+        
+        const list = await game.getLeaderboardList();
+        leaderboardManageTableBody.innerHTML = '';
+        
+        if (list.length === 0) {
+            leaderboardManageTableBody.innerHTML = '<tr><td colspan="4" style="color: var(--neon-pink); padding: 10px 0;">Brak wynikow w bazie danych</td></tr>';
+            return;
+        }
+        
+        list.forEach(entry => {
+            const tr = document.createElement('tr');
+            
+            const tdPilot = document.createElement('td');
+            tdPilot.textContent = entry.username;
+            
+            const tdWave = document.createElement('td');
+            tdWave.textContent = entry.wave;
+            
+            const tdScore = document.createElement('td');
+            tdScore.textContent = entry.score;
+            tdScore.className = 'yellow';
+            
+            const tdActions = document.createElement('td');
+            
+            const btnEdit = document.createElement('button');
+            btnEdit.className = 'btn-leaderboard-action glow-cyan';
+            btnEdit.textContent = 'EDYTUJ';
+            btnEdit.style.marginRight = '5px';
+            btnEdit.addEventListener('click', async () => {
+                const waveStr = prompt(`Podaj nowa fale dla ${entry.username}:`, entry.wave);
+                if (waveStr === null) return;
+                const newWave = parseInt(waveStr);
+                if (isNaN(newWave) || newWave < 1) {
+                    alert("Nieprawidlowa fala!");
+                    return;
+                }
+                
+                const scoreStr = prompt(`Podaj nowy wynik dla ${entry.username}:`, entry.score);
+                if (scoreStr === null) return;
+                let newScore = parseInt(scoreStr);
+                if (isNaN(newScore) || newScore < 0) {
+                    alert("Nieprawidlowy wynik!");
+                    return;
+                }
+                
+                // Walidacja / Przelicznik
+                const range = getScoreRangeForWave(newWave);
+                if (newScore < range.min) {
+                    newScore = range.min;
+                    alert(`Wynik za niski dla fali ${newWave}. Skorygowano do minimum: ${newScore} pkt.`);
+                } else if (newScore > range.max) {
+                    newScore = range.max;
+                    alert(`Wynik za wysoki dla fali ${newWave}. Skorygowano do maksimum: ${newScore} pkt.`);
+                }
+                
+                btnEdit.disabled = true;
+                const res = await game.updateLeaderboardEntry(entry.id, newWave, newScore);
+                if (res.success) {
+                    await renderLeaderboardManageTable();
+                    if (game) game.updateLeaderboardUI();
+                } else {
+                    alert("Blad: " + res.message);
+                }
+                btnEdit.disabled = false;
+            });
+            
+            const btnDelete = document.createElement('button');
+            btnDelete.className = 'btn-leaderboard-action glow-pink';
+            btnDelete.textContent = 'USUN';
+            btnDelete.addEventListener('click', async () => {
+                if (confirm(`Czy na pewno chcesz usunac wynik gracza ${entry.username}?`)) {
+                    btnDelete.disabled = true;
+                    const res = await game.deleteLeaderboardEntry(entry.id);
+                    if (res.success) {
+                        await renderLeaderboardManageTable();
+                        if (game) game.updateLeaderboardUI();
+                    } else {
+                        alert("Blad: " + res.message);
+                    }
+                    btnDelete.disabled = false;
+                }
+            });
+            
+            tdActions.appendChild(btnEdit);
+            tdActions.appendChild(btnDelete);
+            
+            tr.appendChild(tdPilot);
+            tr.appendChild(tdWave);
+            tr.appendChild(tdScore);
+            tr.appendChild(tdActions);
+            leaderboardManageTableBody.appendChild(tr);
         });
     }
 

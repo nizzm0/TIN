@@ -277,10 +277,14 @@
                             <button class="btn-retro glow-pink btn-small" id="btnClearLeaderboard" style="flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
                                 WYCZYSC TABELE LIDEROW
                             </button>
+                            <button class="btn-retro glow-cyan btn-small" id="btnToggleManageLeaderboard" style="display: none; flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
+                                ZARZADZAJ WYNIKAMI
+                            </button>
                         </div>
                         
-                        <p class="admin-subtitle" style="margin-top: 10px; margin-bottom: 5px; color: #88cc88;">ZAREJESTROWANI PILOCI</p>
-                        <div class="user-list-container">
+                        <p class="admin-subtitle" id="userAdminSubtitle" style="margin-top: 10px; margin-bottom: 5px; color: #88cc88;">ZAREJESTROWANI PILOCI</p>
+                        
+                        <div class="user-list-container" id="userListContainer">
                             <table class="user-table">
                                 <thead>
                                     <tr>
@@ -290,6 +294,23 @@
                                     </tr>
                                 </thead>
                                 <tbody id="userTableBody">
+                                    <!-- Wiersze generowane dynamicznie w JS -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Panel zarządzania wynikami tabeli liderów (dostępny tylko dla Ownera) -->
+                        <div class="user-list-container" id="leaderboardManageContainer" style="display: none;">
+                            <table class="user-table">
+                                <thead>
+                                    <tr>
+                                        <th>PILOT</th>
+                                        <th>FALA</th>
+                                        <th>WYNIK</th>
+                                        <th>AKCJE</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="leaderboardManageTableBody">
                                     <!-- Wiersze generowane dynamicznie w JS -->
                                 </tbody>
                             </table>

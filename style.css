@@ -1273,3 +1273,33 @@ input:checked + .retro-slider:before {
     gap: 10px;
 }
 
+/* Przyciski edycji tabeli liderów dla Ownera */
+.btn-leaderboard-action {
+    background-color: #11111a;
+    border: 1.5px solid #444;
+    color: #8888aa;
+    font-family: var(--font-family);
+    font-size: clamp(0.35rem, 0.9cqw, 0.55rem);
+    padding: clamp(2px, 0.4cqw, 6px) clamp(4px, 0.8cqw, 10px);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-leaderboard-action:active {
+    transform: scale(0.92);
+}
+
+.btn-leaderboard-action.glow-cyan:hover {
+    color: var(--neon-cyan);
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 8px rgba(0, 243, 255, 0.4);
+}
+
+.btn-leaderboard-action.glow-pink:hover {
+    color: var(--neon-pink);
+    border-color: var(--neon-pink);
+    box-shadow: 0 0 8px rgba(255, 0, 127, 0.4);
+}
+
+

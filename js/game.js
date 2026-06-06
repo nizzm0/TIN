@@ -333,6 +333,73 @@ export class Game {
         }
     }
 
+    /**
+     * Pobiera pelna liste wynikow z tabeli liderow (bez limitu).
+     * @returns {Promise<Array>} Lista wynikow
+     */
+    async getLeaderboardList() {
+        try {
+            const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'));
+            const querySnapshot = await getDocs(q);
+            const list = [];
+            querySnapshot.forEach(docSnap => {
+                list.push({
+                    id: docSnap.id,
+                    ...docSnap.data()
+                });
+            });
+            return list;
+        } catch (err) {
+            console.error("Error fetching leaderboard list:", err);
+            return [];
+        }
+    }
+
+    /**
+     * Aktualizuje konkretny wpis w tabeli liderow.
+     * @param {string} docId Identyfikator dokumentu (nazwa gracza lowercase)
+     * @param {number} wave Nowa fala
+     * @param {number} score Nowy wynik
+     * @returns {Promise<{success: boolean, message?: string}>} Wynik operacji
+     */
+    async updateLeaderboardEntry(docId, wave, score) {
+        try {
+            const leaderboardDocRef = doc(db, 'leaderboard', docId);
+            const docSnap = await getDoc(leaderboardDocRef);
+            if (!docSnap.exists()) {
+                return { success: false, message: "Dokument nie istnieje!" };
+            }
+            const data = docSnap.data();
+            await setDoc(leaderboardDocRef, {
+                ...data,
+                wave: wave,
+                score: score,
+                date: Date.now()
+            });
+            return { success: true };
+        } catch (err) {
+            console.error("Error updating leaderboard entry:", err);
+            return { success: false, message: err.message };
+        }
+    }
+
+    /**
+     * Usuwa konkretny wpis z tabeli liderow.
+     * @param {string} docId Identyfikator dokumentu
+     * @returns {Promise<{success: boolean, message?: string}>} Wynik operacji
+     */
+    async deleteLeaderboardEntry(docId) {
+        try {
+            const leaderboardDocRef = doc(db, 'leaderboard', docId);
+            await deleteDoc(leaderboardDocRef);
+            return { success: true };
+        } catch (err) {
+            console.error("Error deleting leaderboard entry:", err);
+            return { success: false, message: err.message };
+        }
+    }
+
+
     startGame(mode) {
         audio.init();
         this.gameMode = mode;
