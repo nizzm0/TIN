@@ -430,11 +430,9 @@ export class Game {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => {
             if (this.currentState === this.states.PLAYING) {
-                this.waveTimer--;
-                this.updateHUD();
-                
-                if (this.waveTimer <= 0) {
-                    this.endWave(true);
+                if (this.waveTimer > 0) {
+                    this.waveTimer--;
+                    this.updateHUD();
                 }
             }
         }, 1000);
