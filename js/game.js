@@ -100,7 +100,7 @@ export class Game {
             // Klawisz K - natychmiastowe zniszczenie kosmitów (dostępny dla admina/testera)
             if (e.code === 'KeyK') {
                 const sessionUser = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
-                const hasDebug = sessionUser && (sessionUser.role === 'admin' || sessionUser.role === 'tester');
+                const hasDebug = sessionUser && (sessionUser.role === 'admin' || sessionUser.role === 'tester' || sessionUser.role === 'owner');
                 if (hasDebug && this.currentState === this.states.PLAYING) {
                     e.preventDefault();
                     this.invaders.forEach(inv => inv.isAlive = false);
@@ -838,7 +838,7 @@ export class Game {
         
         const user = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
         if (btnAdmin) {
-            btnAdmin.style.display = (user && user.role === 'admin') ? 'inline-block' : 'none';
+            btnAdmin.style.display = (user && (user.role === 'admin' || user.role === 'owner')) ? 'inline-block' : 'none';
         }
         
         this.ctx.clearRect(0, 0, this.virtualW, this.virtualH);

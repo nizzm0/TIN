@@ -664,7 +664,123 @@ window.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // --- SYSTEM STEROWANIA KLAWIATURA DLA MENU I EKRANOW ---
+    let keyboardFocusIndex = 0;
+    let focusableItems = [];
+
+    function updateKeyboardFocus() {
+        // Usun poprzednie podswietlenie klasy retro
+        document.querySelectorAll('.keyboard-focused').forEach(el => el.classList.remove('keyboard-focused'));
+
+        const activeOverlay = document.querySelector('.screen-overlay.active');
+        if (!activeOverlay) {
+            focusableItems = [];
+            return;
+        }
+
+        // Pobierz wszystkie widoczne i aktywne elementy interaktywne
+        focusableItems = Array.from(activeOverlay.querySelectorAll(
+            'button:not([disabled]), input:not([disabled]), select:not([disabled]), .auth-tab'
+        )).filter(el => el.offsetWidth > 0 || el.offsetHeight > 0);
+
+        if (focusableItems.length === 0) return;
+
+        // Kontrola zakresu indeksu
+        if (keyboardFocusIndex >= focusableItems.length) {
+            keyboardFocusIndex = 0;
+        } else if (keyboardFocusIndex < 0) {
+            keyboardFocusIndex = focusableItems.length - 1;
+        }
+
+        const currentItem = focusableItems[keyboardFocusIndex];
+        if (currentItem) {
+            currentItem.classList.add('keyboard-focused');
+            currentItem.focus({ preventScroll: true });
+        }
+    }
+
+    // Interceptowanie metod silnika gry dla automatycznego odswiezania nawigacji klawiatury
+    if (game) {
+        const originalShowScreen = game.showScreen;
+        game.showScreen = function(screenId) {
+            originalShowScreen.call(this, screenId);
+            keyboardFocusIndex = 0;
+            setTimeout(updateKeyboardFocus, 50);
+        };
+
+        const originalHideAllScreens = game.hideAllScreens;
+        game.hideAllScreens = function() {
+            originalHideAllScreens.call(this);
+            keyboardFocusIndex = 0;
+            updateKeyboardFocus();
+        };
+
+        const originalRenderShop = game.renderShop;
+        game.renderShop = function() {
+            originalRenderShop.call(this);
+            // Karty ulepszen renderuja sie dynamicznie, wiec odczekajmy chwile na wpisanie do DOM
+            setTimeout(updateKeyboardFocus, 10);
+        };
+
+        const originalUpdateLeaderboardUI = game.updateLeaderboardUI;
+        game.updateLeaderboardUI = function() {
+            return originalUpdateLeaderboardUI.call(this).then(() => {
+                updateKeyboardFocus();
+            });
+        };
+    }
+
+    // Globalny listener zdarzen klawiatury dla menu
+    window.addEventListener('keydown', (e) => {
+        const activeOverlay = document.querySelector('.screen-overlay.active');
+        if (!activeOverlay) return; // Gra jest aktywna - sterowanie graczem przejmuje silnik
+
+        const activeEl = document.activeElement;
+        const isInputFocused = activeEl && (activeEl.tagName === 'INPUT' && activeEl.type !== 'checkbox' && activeEl.type !== 'radio');
+
+        // Nawigacja w dol i w prawo (ignoruj w prawo w polach tekstowych aby moc przemieszczac kursor)
+        if (e.code === 'ArrowDown' || (e.code === 'ArrowRight' && !isInputFocused)) {
+            e.preventDefault();
+            keyboardFocusIndex++;
+            updateKeyboardFocus();
+        } 
+        // Nawigacja w gore i w lewo (ignoruj w lewo w polach tekstowych)
+        else if (e.code === 'ArrowUp' || (e.code === 'ArrowLeft' && !isInputFocused)) {
+            e.preventDefault();
+            keyboardFocusIndex--;
+            updateKeyboardFocus();
+        } 
+        // Obsluga tabulacji jako alternatywnej retro nawigacji
+        else if (e.code === 'Tab') {
+            e.preventDefault();
+            if (e.shiftKey) {
+                keyboardFocusIndex--;
+            } else {
+                keyboardFocusIndex++;
+            }
+            updateKeyboardFocus();
+        } 
+        // Klikniecie wybranego elementu na Enter
+        else if (e.code === 'Enter') {
+            if (activeEl && (activeEl.tagName === 'BUTTON' || activeEl.classList.contains('auth-tab') || (activeEl.tagName === 'INPUT' && activeEl.type === 'checkbox'))) {
+                e.preventDefault();
+                activeEl.click();
+            }
+        } 
+        // Escape jako powrot do poprzedniego ekranu
+        else if (e.code === 'Escape') {
+            const backBtn = activeOverlay.querySelector('.btn-auth-back, #btnBackFromUserAdmin, #btnBackFromAdmin, #btnBackToMenu, #btnExitToMenu');
+            if (backBtn) {
+                e.preventDefault();
+                backBtn.click();
+            }
+        }
+    });
+
     // Inicjalizacja interfejsu autoryzacji i debugowania przy starcie
     updateAuthUI();
     initDebugUI();
+    
+    // Inicjalne podświetlenie klawiatury
+    setTimeout(updateKeyboardFocus, 100);
 });
