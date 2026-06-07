@@ -21,7 +21,8 @@ export class Player {
             bulletSpeed: 0,
             multiShot: 0,
             explosive: 0,
-            autofire: 0
+            autofire: 0,
+            phaseLaser: 0
         };
     }
 
@@ -34,22 +35,35 @@ export class Player {
         return 4.5 + this.upgrades.speed * 0.8;
     }
 
-    getMaxCooldown() {
-        return Math.max(8, 25 - this.upgrades.fireRate * 4);
+    getMaxCooldown(activeModifier) {
+        let baseCooldown = Math.max(8, 25 - this.upgrades.fireRate * 4);
+        if (activeModifier === 'SHIELD_FAIL') {
+            baseCooldown = Math.max(6, Math.round(baseCooldown * 0.75));
+        }
+        return baseCooldown;
     }
 
     getBulletSpeed() {
         return -(6.5 + this.upgrades.bulletSpeed * 1.5);
     }
 
-    update(keys, canvasWidth) {
+    update(keys, canvasWidth, activeModifier) {
         if (!this.isAlive) return;
 
         const speed = this.getSpeed();
-        if (keys['ArrowLeft'] || keys['KeyA']) {
+        let leftPressed = keys['ArrowLeft'] || keys['KeyA'];
+        let rightPressed = keys['ArrowRight'] || keys['KeyD'];
+
+        if (activeModifier === 'REVERSED_CONTROL') {
+            const temp = leftPressed;
+            leftPressed = rightPressed;
+            rightPressed = temp;
+        }
+
+        if (leftPressed) {
             this.x -= speed;
         }
-        if (keys['ArrowRight'] || keys['KeyD']) {
+        if (rightPressed) {
             this.x += speed;
         }
 
@@ -61,7 +75,7 @@ export class Player {
         }
     }
 
-    shoot(projectiles) {
+    shoot(projectiles, activeModifier) {
         if (!this.isAlive || this.cooldown > 0) return false;
 
         const bulletSpeed = this.getBulletSpeed();
@@ -85,7 +99,7 @@ export class Player {
             projectiles.push(pRight);
         }
 
-        this.cooldown = this.getMaxCooldown();
+        this.cooldown = this.getMaxCooldown(activeModifier);
         audio.playLaser();
         return true;
     }

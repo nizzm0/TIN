@@ -14,7 +14,13 @@ export class Invader {
         this.animFrame = 0;
         
         // Zróżnicowane HP, punkty oraz poziomy obronne kosmitów
-        if (type === 'red') {
+        if (type === 'boss') {
+            this.points = 1000;
+            this.maxHp = 60;
+            this.hp = 60;
+            this.width = 160;
+            this.height = 70;
+        } else if (type === 'red') {
             this.points = 40;
             this.maxHp = 4;
             this.hp = 4;
@@ -35,7 +41,11 @@ export class Invader {
 
     // Dynamiczna zmiana koloru w zależności od pozostałego zdrowia kosmity (wizualna informacja dla gracza!)
     getColor() {
-        if (this.type === 'red') {
+        if (this.type === 'boss') {
+            if (this.hp > 45) return varColor('--neon-pink', '#ff007f');
+            if (this.hp > 25) return varColor('--neon-yellow', '#ffdf00');
+            return varColor('--neon-red', '#ff3333');
+        } else if (this.type === 'red') {
             if (this.hp === 4) return varColor('--neon-red', '#ff3333'); // Jasna czerwień
             if (this.hp === 3) return '#cc2424'; // Średnia czerwień
             if (this.hp === 2) return '#991818'; // Ciemna czerwień

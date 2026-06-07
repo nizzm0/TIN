@@ -5,12 +5,13 @@ import { Invader } from './invader.js';
 import { Particle } from './particle.js';
 import { Projectile } from './projectile.js';
 import { varColor } from './utils.js';
+import { SPRITES, drawPixelSprite } from './sprites.js';
 import { db } from './firebase.js';
-import { 
-    collection, 
-    getDocs, 
-    query, 
-    orderBy, 
+import {
+    collection,
+    getDocs,
+    query,
+    orderBy,
     limit,
     doc,
     getDoc,
@@ -56,10 +57,15 @@ export class Game {
         this.waveTimer = 45;
         this.timerInterval = null;
         this.gameMode = 'campaign';
+        this.activeModifier = 'NORMAL';
+        this.ufo = null;
+        this.bossSpawnMilestones = { 45: false, 30: false, 15: false };
+        this.bossShieldMode = 'center';
+        this.bossShieldTimer = 0;
 
         this.invadersDirection = 1;
         this.invadersStepDown = false;
-        
+
         this.lastTime = 0;
         this.accumulatedTime = 0;
         this.fpsLimit = 60;
@@ -85,7 +91,7 @@ export class Game {
                         // Ciągły strzał obsługiwany w updatePhysics
                     } else {
                         if (this.spaceReleased) {
-                            this.player.shoot(this.projectiles);
+                            this.player.shoot(this.projectiles, this.activeModifier);
                             this.spaceReleased = false;
                         }
                     }
@@ -165,7 +171,7 @@ export class Game {
 
     showScreen(screenId) {
         const screens = [
-            'menuStartScreen', 'transitionScreen', 'shopScreen', 
+            'menuStartScreen', 'transitionScreen', 'shopScreen',
             'pauseScreen', 'gameOverScreen', 'victoryScreen',
             'authScreen', 'adminPanelScreen', 'userAdminScreen'
         ];
@@ -183,7 +189,7 @@ export class Game {
 
     hideAllScreens() {
         const screens = [
-            'menuStartScreen', 'transitionScreen', 'shopScreen', 
+            'menuStartScreen', 'transitionScreen', 'shopScreen',
             'pauseScreen', 'gameOverScreen', 'victoryScreen',
             'authScreen', 'adminPanelScreen', 'userAdminScreen'
         ];
@@ -197,12 +203,12 @@ export class Game {
         const tbody = document.getElementById('leaderboardBody');
         if (!tbody) return;
         tbody.innerHTML = '';
-        
+
         try {
             // Pobieramy 5 najlepszych wyników z Firestore
             const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'), limit(5));
             const querySnapshot = await getDocs(q);
-            
+
             if (querySnapshot.empty) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td colspan="4" style="color: var(--neon-pink); padding: 2cqw 0; font-size: 1.2cqw;">BRAK ZAPISANYCH WYNIKOW</td>`;
@@ -214,7 +220,7 @@ export class Game {
             querySnapshot.forEach((doc) => {
                 const entry = doc.data();
                 const tr = document.createElement('tr');
-                
+
                 // Kolorowanie pozycji liderów w stylu retro
                 let userClass = 'cyan';
                 if (idx === 0) userClass = 'yellow';
@@ -240,14 +246,14 @@ export class Game {
         const user = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
         const name = user ? user.username : 'GOSC';
         const docId = name.toLowerCase();
-        
+
         try {
             const leaderboardDocRef = doc(db, 'leaderboard', docId);
-            
+
             // Sprawdzamy dotychczasowy najlepszy wynik dla tego pilota/goscia
             const docSnap = await getDoc(leaderboardDocRef);
             let shouldSave = true;
-            
+
             if (docSnap.exists()) {
                 const existingEntry = docSnap.data();
                 // Zapisujemy tylko jeśli nowy wynik jest wyższy
@@ -255,7 +261,7 @@ export class Game {
                     shouldSave = false;
                 }
             }
-            
+
             if (shouldSave) {
                 const entry = {
                     username: name,
@@ -263,19 +269,19 @@ export class Game {
                     score: this.score,
                     date: Date.now()
                 };
-                
+
                 await setDoc(leaderboardDocRef, entry);
                 console.log(`Saved new high score for ${name}: ${this.score}`);
             } else {
                 console.log(`Score ${this.score} is not higher than existing record for ${name}.`);
             }
-            
+
             // Kompatybilność wsteczna z starym systemem high score (localStorage)
             if (this.score > this.highScore) {
                 this.highScore = this.score;
                 localStorage.setItem('arcade_highscore', this.highScore);
             }
-            
+
             await this.updateLeaderboardUI();
         } catch (err) {
             console.error("Error saving score to leaderboard:", err);
@@ -291,11 +297,11 @@ export class Game {
             });
             await Promise.all(deletePromises);
             console.log("Leaderboard cleared successfully in Firestore.");
-            
+
             // Czyszczenie lokalnego najwyższego wyniku
             this.highScore = 0;
             localStorage.removeItem('arcade_highscore');
-            
+
             await this.updateLeaderboardUI();
             return { success: true };
         } catch (err) {
@@ -375,27 +381,27 @@ export class Game {
         audio.init();
         this.gameMode = mode;
         this.score = 0;
-        
+
         // Resetowanie ułatwień debugowania przy starcie nowej rozgrywki
         localStorage.setItem('dbg_god_mode', 'false');
         localStorage.setItem('dbg_inf_credits', 'false');
         localStorage.setItem('dbg_autofire', 'false');
         localStorage.setItem('dbg_start_wave', '1');
-        
+
         this.credits = 0;
         this.currentWave = 1;
-        
+
         this.player = new Player();
-        
+
         // Ukryj przyciski autoryzacji na obudowie w trakcie gry
         const btnAuth = document.getElementById('btnAuthAction');
         const btnAdmin = document.getElementById('btnUserAdminPanel');
         if (btnAuth) btnAuth.style.display = 'none';
         if (btnAdmin) btnAdmin.style.display = 'none';
-        
+
         this.projectiles = [];
         this.particles = [];
-        
+
         this.initBunkers();
 
         document.getElementById('hud').style.display = 'flex';
@@ -413,17 +419,218 @@ export class Game {
         }
     }
 
+    getCampaignWaveConfig(waveNum) {
+        const configs = {
+            1: {
+                name: "PIERWSZY KONTAKT",
+                desc: "Zbadaj anomalie w sektorze Alpha. Lekki szyk zolty.",
+                layout: 'standard',
+                rows: ['octopus', 'octopus', 'octopus']
+            },
+            2: {
+                name: "ZWIAD NAJEZDZCOW",
+                desc: "Ruszaj w poscig za wrogim zwiadem. Pojawiaja sie rozowe kraby.",
+                layout: 'standard',
+                rows: ['crab', 'octopus', 'octopus', 'octopus']
+            },
+            3: {
+                name: "KLIN OFENSYWNY",
+                desc: "Kosmici formuja klin bojowy. Zestrzel ich zanim zejda za nisko.",
+                layout: 'wedge',
+                rows: ['crab', 'crab', 'octopus', 'octopus']
+            },
+            4: {
+                name: "PAS ASTERIDOW",
+                desc: "Wrog kryje sie za pasem asteroid. Bunkry sa bardziej narazone.",
+                layout: 'split_column',
+                rows: ['crab', 'crab', 'octopus', 'octopus']
+            },
+            5: {
+                name: "MUR GENERATOROW",
+                desc: "Formacja obronna wroga. Skup ogien w jednym punkcie.",
+                layout: 'standard',
+                rows: ['squid', 'crab', 'crab', 'octopus']
+            },
+            6: {
+                name: "SZACHOWNICA",
+                desc: "Nietypowa formacja ulatwiajaca im uniki. Zachowaj czujnosc.",
+                layout: 'checkerboard',
+                rows: ['squid', 'crab', 'octopus']
+            },
+            7: {
+                name: "KOLUMNA SZTURMOWA",
+                desc: "Wrogowie grupuja sie w pionowe kolumny. Strzelaj w szczeliny.",
+                layout: 'columns',
+                rows: ['squid', 'squid', 'crab', 'crab']
+            },
+            8: {
+                name: "LINIA SMIERCI",
+                desc: "Kosmici schodza znacznie nizej. Szybka eliminacja wymagana.",
+                layout: 'standard',
+                rows: ['squid', 'squid', 'crab', 'crab', 'octopus'],
+                descend: 2
+            },
+            9: {
+                name: "SCIANA SMUTKU",
+                desc: "Pelna formacja bojowa. Ocal bunkry za wszelka cene.",
+                layout: 'standard',
+                rows: ['red', 'squid', 'squid', 'crab', 'crab']
+            },
+            10: {
+                name: "CZYSTKA CYJANKOWA",
+                desc: "Frakcja blekitnych napastnikow atakuje cala sila.",
+                layout: 'standard',
+                rows: ['squid', 'squid', 'squid', 'squid', 'squid']
+            },
+            11: {
+                name: "CZERWONY SWIT",
+                desc: "Pierwsze uderzenie ciezkich krazownikow klasy RED.",
+                layout: 'standard',
+                rows: ['red', 'red', 'squid', 'squid']
+            },
+            12: {
+                name: "ROZPROSZENIE",
+                desc: "Rozproszony szyk obcych. Trudne cele dla pojedynczego lasera.",
+                layout: 'staggered',
+                rows: ['red', 'red', 'squid', 'squid']
+            },
+            13: {
+                name: "FORTICA",
+                desc: "Ciezkie jednostki chronione przez zolte miny.",
+                layout: 'standard',
+                rows: ['red', 'red', 'red', 'octopus', 'octopus']
+            },
+            14: {
+                name: "KLESZCZE BITEWNE",
+                desc: "Formacja V-ksztaltna. Atakuja nas z flank.",
+                layout: 'v_shape',
+                rows: ['red', 'red', 'squid', 'squid']
+            },
+            15: {
+                name: "PIEKIELNY DESANT",
+                desc: "Kosmiczna armada RED. Maksymalna sila ognia.",
+                layout: 'standard',
+                rows: ['red', 'red', 'red', 'red', 'red']
+            },
+            16: {
+                name: "DRUZYNA UFO",
+                desc: "Szpiedzy wroga zageszczaja ruch w atmosferze.",
+                layout: 'staggered',
+                rows: ['red', 'red', 'squid', 'squid', 'squid'],
+                ufoChanceBoost: true
+            },
+            17: {
+                name: "KORONA",
+                desc: "Elitarna straza ulozona w ksztalt korony.",
+                layout: 'crown',
+                rows: ['red', 'red', 'red', 'squid']
+            },
+            18: {
+                name: "BOMBOWCE TAKTYCZNE",
+                desc: "Zmasowany atak eskadr bombowych.",
+                layout: 'columns',
+                rows: ['red', 'red', 'red', 'red']
+            },
+            19: {
+                name: "PRZEDSWIT KATAKLIZMU",
+                desc: "Ostatnia linia obrony wroga przed statkiem matka.",
+                layout: 'checkerboard',
+                rows: ['red', 'red', 'red', 'red']
+            },
+            20: {
+                name: "STATEK MATKA - BOSS",
+                desc: "Zniszcz flagowy okret kosmitow. Cel: RDZEN GLOWNY.",
+                layout: 'boss',
+                rows: []
+            }
+        };
+        return configs[waveNum] || {
+            name: `FALA ${waveNum}`,
+            desc: "WALCZ DALEJ PILOCIE!",
+            layout: 'standard',
+            rows: ['red', 'squid', 'crab', 'octopus']
+        };
+    }
+
+    generateInfiniteWaveConfig() {
+        const layouts = ['standard', 'checkerboard', 'staggered', 'split_column', 'columns', 'wedge', 'v_shape'];
+        const layout = layouts[Math.floor(Math.random() * layouts.length)];
+
+        const rows = [];
+        const numRows = 5;
+        for (let r = 0; r < numRows; r++) {
+            if (this.currentWave <= 2) {
+                rows.push('octopus');
+            } else if (this.currentWave <= 5) {
+                rows.push(r <= 1 ? 'crab' : 'octopus');
+            } else if (this.currentWave <= 8) {
+                rows.push(r === 0 ? 'squid' : (r <= 2 ? 'crab' : 'octopus'));
+            } else if (this.currentWave <= 12) {
+                rows.push(r <= 1 ? 'squid' : 'crab');
+            } else {
+                rows.push(r <= 1 ? 'red' : (r <= 3 ? 'squid' : 'crab'));
+            }
+        }
+
+        return {
+            layout,
+            rows
+        };
+    }
+
     startWaveTransition() {
         this.currentState = this.states.LEVEL_TRANSITION;
         this.showScreen('transitionScreen');
-        
+
         const title = document.getElementById('transitionTitle');
         const desc = document.getElementById('transitionDesc');
         const bar = document.getElementById('transitionProgress');
-        
-        title.textContent = `FALA ${this.currentWave}`;
-        desc.textContent = this.gameMode === 'campaign' ? `PRZYGOTOWANIE (${this.currentWave}/20)` : 'PRZYGOTOWANIE (BEZ KONCA)';
-        
+
+        if (this.gameMode === 'infinite') {
+            const modifiers = ['NORMAL', 'FAST_INVADERS', 'MASSIVE_FIRE', 'UFO_STORM', 'SHIELD_FAIL', 'REVERSED_CONTROL'];
+            this.activeModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
+        } else {
+            this.activeModifier = 'NORMAL';
+        }
+
+        let modTitle = '';
+        let modDesc = '';
+        switch (this.activeModifier) {
+            case 'NORMAL':
+                modTitle = 'NORMALNA RUNDA';
+                modDesc = 'Klasyczna walka w przestrzeni kosmicznej.';
+                break;
+            case 'FAST_INVADERS':
+                modTitle = 'SZYBCY NAJEZDZCY';
+                modDesc = 'Obcy poruszaja sie o 35% szybciej! +50% PKT i 2x MONETY!';
+                break;
+            case 'MASSIVE_FIRE':
+                modTitle = 'ZMASOWANY OSTRZAL';
+                modDesc = 'Czestotliwosc strzalow kosmitow wzrasta o 250%!';
+                break;
+            case 'UFO_STORM':
+                modTitle = 'BURZA UFO';
+                modDesc = 'Zwiekszona czestosc lotow szpiegowskich UFO! +50% monet z UFO!';
+                break;
+            case 'SHIELD_FAIL':
+                modTitle = 'AWARIA TARCZ';
+                modDesc = 'Bunkry sa uszkodzone o 50%! Skrocenie cooldownu lasera o 25%!';
+                break;
+            case 'REVERSED_CONTROL':
+                modTitle = 'ODWRCONE STEROWANIE';
+                modDesc = 'Kierunki poruszania sie zostaja odwrocone! PODWOJNE MONETY I PKT!';
+                break;
+        }
+
+        if (this.gameMode === 'campaign') {
+            const config = this.getCampaignWaveConfig(this.currentWave);
+            title.textContent = `FALA ${this.currentWave}: ${config.name}`;
+            desc.innerHTML = `<span style="color: var(--neon-cyan);">${config.desc}</span>`;
+        } else {
+            title.textContent = `FALA ${this.currentWave}`;
+            desc.innerHTML = `<span style="color: var(--neon-yellow);">${modTitle}</span><br><span style="font-size: 0.85em; color: #88a;">${modDesc}</span>`;
+        }
+
         audio.playLevelUp();
 
         bar.style.width = '0%';
@@ -435,7 +642,7 @@ export class Game {
             }
             progress += 5;
             bar.style.width = `${progress}%`;
-            
+
             if (progress >= 100) {
                 clearInterval(interval);
                 this.initWaveGameplay();
@@ -447,68 +654,100 @@ export class Game {
         this.hideAllScreens();
         this.currentState = this.states.PLAYING;
         this.projectiles = [];
-        
+
         this.player.resetPosition();
 
+        let layoutType = 'standard';
+        let rowsConfig = [];
+        let descendOffset = 0;
+
+        if (this.gameMode === 'campaign') {
+            const config = this.getCampaignWaveConfig(this.currentWave);
+            layoutType = config.layout;
+            rowsConfig = config.rows;
+            descendOffset = config.descend ? config.descend * 12 : 0;
+        } else {
+            const config = this.generateInfiniteWaveConfig();
+            layoutType = config.layout;
+            rowsConfig = config.rows;
+        }
+
         this.invaders = [];
-        const startX = 60;
-        const startY = 65 + Math.min(6, this.currentWave - 1) * 10;
 
-        const colSpacing = 52;
-        const rowSpacing = 40;
+        if (layoutType === 'boss') {
+            this.bossSpawnMilestones = { 45: false, 30: false, 15: false };
+            this.bossShieldMode = 'center';
+            this.bossShieldTimer = 0;
+            const bossX = 400 - 80;
+            const bossY = 80;
+            this.invaders.push(new Invader(bossX, bossY, 'boss', 0));
+        } else {
+            const startX = 60;
+            const startY = 65 + Math.min(6, this.currentWave - 1) * 10 + descendOffset;
+            const colSpacing = 52;
+            const rowSpacing = 40;
 
-        for (let row = 0; row < 5; row++) {
-            let type = 'octopus'; // Domyślnie żółty (1 HP)
-            
-            // Logika ewolucji trudności kosmitów z każdą falą:
-            if (this.currentWave === 1) {
-                type = 'octopus'; // Fala 1: tylko żółte ośmiorniczki (1 HP)
-            } else if (this.currentWave === 2) {
-                type = (row === 0) ? 'crab' : 'octopus'; // Fala 2: 1 rząd różowych (2 HP) na górze
-            } else if (this.currentWave === 3) {
-                type = (row <= 1) ? 'crab' : 'octopus'; // Fala 3: 2 rzędy różowych
-            } else if (this.currentWave === 4) {
-                type = (row <= 2) ? 'crab' : 'octopus'; // Fala 4: 3 rzędy różowych
-            } else if (this.currentWave === 5) {
-                type = (row <= 3) ? 'crab' : 'octopus'; // Fala 5: 4 rzędy różowych
-            } else if (this.currentWave === 6) {
-                type = (row === 0) ? 'squid' : 'crab'; // Fala 6: 1 rząd błękitnych (3 HP) na górze, reszta różowe. ŻÓŁTE ZNIKAJĄ!
-            } else if (this.currentWave === 7) {
-                type = (row <= 1) ? 'squid' : 'crab'; // Fala 7: 2 rzędy błękitnych
-            } else if (this.currentWave === 8) {
-                type = (row <= 2) ? 'squid' : 'crab'; // Fala 8: 3 rzędy błękitnych
-            } else if (this.currentWave === 9) {
-                type = (row <= 3) ? 'squid' : 'crab'; // Fala 9: 4 rzędy błękitnych
-            } else if (this.currentWave === 10) {
-                type = 'squid'; // Fala 10: wszystkie 5 rzędów to błękitne statki Squid (3 HP)
-            } else if (this.currentWave === 11) {
-                type = (row === 0) ? 'red' : 'squid'; // Fala 11: 1 rząd czerwonych (4 HP) na górze
-            } else if (this.currentWave === 12) {
-                type = (row <= 1) ? 'red' : 'squid'; // Fala 12: 2 rzędy czerwonych
-            } else if (this.currentWave === 13) {
-                type = (row <= 2) ? 'red' : 'squid'; // Fala 13: 3 rzędy czerwonych
-            } else if (this.currentWave === 14) {
-                type = (row <= 3) ? 'red' : 'squid'; // Fala 14: 4 rzędy czerwonych
-            } else {
-                type = 'red'; // Fala 15+: wszystkie 5 rzędów to najsilniejsze czerwone statki (4 HP)!
+            for (let row = 0; row < rowsConfig.length; row++) {
+                const type = rowsConfig[row];
+                for (let col = 0; col < 11; col++) {
+                    let spawn = false;
+                    switch (layoutType) {
+                        case 'standard':
+                            spawn = true;
+                            break;
+                        case 'wedge':
+                            spawn = (Math.abs(5 - col) <= row);
+                            break;
+                        case 'v_shape':
+                            spawn = (col === row || col === 10 - row || col === row + 1 || col === 9 - row);
+                            break;
+                        case 'split_column':
+                            spawn = (col < 3 || col > 7);
+                            break;
+                        case 'checkerboard':
+                            spawn = ((row + col) % 2 === 0);
+                            break;
+                        case 'staggered':
+                            spawn = (row % 2 === 0 ? col % 2 === 0 : col % 2 !== 0);
+                            break;
+                        case 'columns':
+                            spawn = (col % 3 !== 2);
+                            break;
+                        case 'crown':
+                            if (row === 0) {
+                                spawn = (col === 0 || col === 5 || col === 10);
+                            } else if (row === 1) {
+                                spawn = (col <= 1 || col === 4 || col === 5 || col === 6 || col >= 9);
+                            } else {
+                                spawn = true;
+                            }
+                            break;
+                        default:
+                            spawn = true;
+                    }
+
+                    if (spawn) {
+                        const invX = startX + col * colSpacing;
+                        const invY = startY + row * rowSpacing;
+                        this.invaders.push(new Invader(invX, invY, type, row));
+                    }
+                }
             }
+        }
 
-            for (let col = 0; col < 11; col++) {
-                const invX = startX + col * colSpacing;
-                const invY = startY + row * rowSpacing;
-                this.invaders.push(new Invader(invX, invY, type, row));
-            }
+        if (this.activeModifier === 'SHIELD_FAIL') {
+            this.bunkers.forEach(b => b.damageRandomly(0.5));
         }
 
         this.invadersDirection = 1;
         this.invadersStepDown = false;
-        
+
         this.invaderStepCooldown = 0;
         this.invaderStepIndex = 0;
 
         this.waveTimer = 45;
         this.updateHUD();
-        
+
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => {
             if (this.currentState === this.states.PLAYING) {
@@ -522,7 +761,7 @@ export class Game {
 
     updateHUD() {
         document.getElementById('scoreVal').textContent = String(this.score).padStart(5, '0');
-        
+
         const waveBox = document.getElementById('waveVal');
         if (this.gameMode === 'campaign') {
             waveBox.textContent = `${this.currentWave}/20`;
@@ -552,7 +791,7 @@ export class Game {
             // Wznowienie - powrót do poprzedniego stanu (gra lub sklep)
             const targetState = this.prePauseState || this.states.PLAYING;
             this.currentState = targetState;
-            
+
             if (this.currentState === this.states.SHOP) {
                 this.showScreen('shopScreen');
                 this.renderShop();
@@ -568,12 +807,17 @@ export class Game {
 
     endWave(timeOut = false) {
         if (this.timerInterval) clearInterval(this.timerInterval);
-        
+
         // Zmniejszony bonus za pozostały czas (max +10 monet), by uregulować ekonomię
         if (!timeOut && this.waveTimer > 0) {
-            const timeBonus = Math.min(10, Math.floor(this.waveTimer / 4));
+            let timeBonus = Math.min(10, Math.floor(this.waveTimer / 4));
+            let scoreBonus = this.waveTimer * 10;
+            if (this.activeModifier === 'REVERSED_CONTROL') {
+                timeBonus *= 2;
+                scoreBonus *= 2;
+            }
             this.credits += timeBonus;
-            this.score += this.waveTimer * 10;
+            this.score += scoreBonus;
         }
 
         if (this.gameMode === 'campaign' && this.currentWave === 20) {
@@ -589,10 +833,10 @@ export class Game {
     showVictoryScreen() {
         this.currentState = this.states.VICTORY;
         this.showScreen('victoryScreen');
-        
+
         document.getElementById('vicScore').textContent = this.score;
         document.getElementById('vicAliens').textContent = "Wszystkich!";
-        
+
         this.saveScoreToLeaderboard();
     }
 
@@ -661,6 +905,15 @@ export class Game {
                 basePrice: 30,
                 priceScale: 1.0,
                 current: this.player.upgrades.autofire || 0
+            },
+            {
+                key: 'phaseLaser',
+                title: 'LASER FAZOWY',
+                desc: 'Strzaly gracza przenikaja przez wlasne bunkry',
+                max: 1,
+                basePrice: 25,
+                priceScale: 1.0,
+                current: this.player.upgrades.phaseLaser || 0
             }
         ];
 
@@ -696,10 +949,10 @@ export class Game {
                 btn.addEventListener('click', (e) => {
                     const key = e.target.getAttribute('data-key');
                     const price = parseInt(e.target.getAttribute('data-price'));
-                    
+
                     this.credits -= price;
                     this.player.upgrades[key]++;
-                    
+
                     audio.playShopBuy();
                     this.renderShop();
                     this.updateHUD();
@@ -775,7 +1028,7 @@ export class Game {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.currentState = this.states.GAME_OVER;
         this.showScreen('gameOverScreen');
-        
+
         audio.playGameOver();
 
         document.getElementById('finalScore').textContent = this.score;
@@ -801,17 +1054,17 @@ export class Game {
         this.currentState = this.states.MENU_START;
         this.showScreen('menuStartScreen');
         document.getElementById('hud').style.display = 'none';
-        
+
         // Przywróć przyciski autoryzacji na obudowie
         const btnAuth = document.getElementById('btnAuthAction');
         const btnAdmin = document.getElementById('btnUserAdminPanel');
         if (btnAuth) btnAuth.style.display = 'inline-block';
-        
+
         const user = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
         if (btnAdmin) {
             btnAdmin.style.display = (user && (user.role === 'admin' || user.role === 'owner')) ? 'inline-block' : 'none';
         }
-        
+
         this.ctx.clearRect(0, 0, this.virtualW, this.virtualH);
     }
 
@@ -819,11 +1072,11 @@ export class Game {
         if (this.currentState !== this.states.PLAYING) return;
 
         // 1. Aktualizacja Gracza
-        this.player.update(this.keys, this.virtualW);
+        this.player.update(this.keys, this.virtualW, this.activeModifier);
 
         // Ciągły ogień (Autofire) jeśli ulepszenie jest odblokowane i klawisz spacji jest wciśnięty
         if (this.player.upgrades.autofire > 0 && this.keys['Space']) {
-            this.player.shoot(this.projectiles);
+            this.player.shoot(this.projectiles, this.activeModifier);
         }
 
         // 2. Aktualizacja cząsteczek
@@ -836,10 +1089,55 @@ export class Game {
         });
         this.projectiles = this.projectiles.filter(proj => proj.active);
 
+        // Statek UFO logic
+        if (this.ufo === null) {
+            let spawnChance = 0.0005;
+            if (this.activeModifier === 'UFO_STORM') {
+                spawnChance = 0.01;
+            } else if (this.gameMode === 'campaign' && this.currentWave === 16) {
+                spawnChance = 0.005;
+            }
+
+            if (Math.random() < spawnChance) {
+                const dir = Math.random() < 0.5 ? 1 : -1;
+                this.ufo = {
+                    x: dir === 1 ? -50 : 850,
+                    y: 35,
+                    width: 48,
+                    height: 24,
+                    speed: 2.5,
+                    direction: dir,
+                    animFrame: 0,
+                    animTimer: 0
+                };
+            }
+        } else {
+            this.ufo.x += this.ufo.speed * this.ufo.direction;
+            this.ufo.animTimer++;
+            if (this.ufo.animTimer >= 15) {
+                this.ufo.animFrame = this.ufo.animFrame === 0 ? 1 : 0;
+                this.ufo.animTimer = 0;
+            }
+
+            if ((this.ufo.direction === 1 && this.ufo.x > 850) || (this.ufo.direction === -1 && this.ufo.x < -50)) {
+                this.ufo = null;
+            }
+        }
+
+        // Boss tarcze logic
+        const boss = this.invaders.find(inv => inv.isAlive && inv.type === 'boss');
+        if (boss) {
+            this.bossShieldTimer++;
+            if (this.bossShieldTimer >= 210) {
+                this.bossShieldTimer = 0;
+                this.bossShieldMode = this.bossShieldMode === 'center' ? 'sides' : 'center';
+            }
+        }
+
         // 4. Detekcja uderzenia kosmitów w dół lub krawędź
         let reachedEdge = false;
-        const alienMoveSpeed = this.getAlienSpeed();
-        
+        let alienMoveSpeed = this.getAlienSpeed();
+
         this.invaders.forEach(inv => {
             if (!inv.isAlive) return;
 
@@ -849,7 +1147,7 @@ export class Game {
                 reachedEdge = true;
             }
 
-            if (inv.y + inv.height >= this.player.y) {
+            if (inv.type !== 'boss' && inv.y + inv.height >= this.player.y) {
                 this.gameOver();
             }
         });
@@ -857,16 +1155,21 @@ export class Game {
         if (reachedEdge) {
             this.invadersDirection *= -1;
             this.invaders.forEach(inv => {
-                inv.y += 12;
-                inv.animFrame = inv.animFrame === 0 ? 1 : 0;
+                if (inv.isAlive) {
+                    if (inv.type !== 'boss') {
+                        inv.y += 12;
+                    }
+                    inv.animFrame = inv.animFrame === 0 ? 1 : 0;
+                }
             });
         }
 
         // 5. Obsługa rytmu ruchów kosmitów
         this.invaderStepCooldown++;
         const totalAlive = this.invaders.filter(inv => inv.isAlive).length;
-        const stepRate = Math.max(3, Math.floor((totalAlive / 55) * 40));
-        
+        const startingSize = (this.gameMode === 'campaign' && this.currentWave === 20) ? 1 : 55;
+        const stepRate = Math.max(3, Math.floor((totalAlive / startingSize) * 40));
+
         if (this.invaderStepCooldown >= stepRate) {
             this.invaderStepCooldown = 0;
             this.invaders.forEach(inv => {
@@ -893,51 +1196,111 @@ export class Game {
     }
 
     getAlienSpeed() {
-        const waveBonus = Math.min(1.5, (this.currentWave - 1) * 0.08);
-        const baseSpeed = 0.4 + waveBonus;
-        
+        let waveBonus;
+        if (this.gameMode === 'campaign') {
+            waveBonus = Math.min(1.5, (this.currentWave - 1) * 0.08);
+        } else {
+            waveBonus = (this.currentWave - 1) * 0.09;
+        }
+        let baseSpeed = 0.4 + waveBonus;
+
+        if (this.gameMode === 'infinite' && this.activeModifier === 'FAST_INVADERS') {
+            baseSpeed *= 1.35;
+        }
+
+        const totalInvaders = this.invaders.length;
         const active = this.invaders.filter(inv => inv.isAlive).length;
-        const destroyedCount = 55 - active;
-        
+        const destroyedCount = totalInvaders - active;
+
         return baseSpeed + destroyedCount * 0.025;
     }
 
     alienShootingLogic(totalAlive) {
         if (totalAlive === 0) return;
 
-        const baseShootChance = 0.0015 + Math.min(0.015, (this.currentWave - 1) * 0.001);
-        
-        if (Math.random() < baseShootChance) {
-            const columns = {};
-            this.invaders.forEach(inv => {
-                if (inv.isAlive) {
-                    const col = Math.floor(inv.x / 50);
-                    if (!columns[col]) columns[col] = [];
-                    columns[col].push(inv);
-                }
-            });
+        const boss = this.invaders.find(inv => inv.isAlive && inv.type === 'boss');
+        if (boss) {
+            let shootChance = 0.04;
+            if (this.activeModifier === 'MASSIVE_FIRE') shootChance *= 2.5;
 
-            const colKeys = Object.keys(columns);
-            if (colKeys.length > 0) {
-                const randomColKey = colKeys[Math.floor(Math.random() * colKeys.length)];
-                const colInvaders = columns[randomColKey];
-                
-                let lowestInvader = colInvaders[0];
-                colInvaders.forEach(inv => {
-                    if (inv.y > lowestInvader.y) {
-                        lowestInvader = inv;
-                    }
-                });
-
-                const alienBulletSpeed = 2.0 + Math.min(1.5, (this.currentWave - 1) * 0.1);
-                
+            if (Math.random() < shootChance) {
+                const alienBulletSpeed = 3.5;
                 this.projectiles.push(new Projectile(
-                    lowestInvader.x + lowestInvader.width / 2,
-                    lowestInvader.y + lowestInvader.height,
+                    boss.x + boss.width / 2,
+                    boss.y + boss.height,
                     alienBulletSpeed,
                     'alien'
                 ));
+                const pLeft = new Projectile(
+                    boss.x + 20,
+                    boss.y + boss.height,
+                    alienBulletSpeed,
+                    'alien'
+                );
+                pLeft.vx = -1.5;
+                this.projectiles.push(pLeft);
+
+                const pRight = new Projectile(
+                    boss.x + boss.width - 20,
+                    boss.y + boss.height,
+                    alienBulletSpeed,
+                    'alien'
+                );
+                pRight.vx = 1.5;
+                this.projectiles.push(pRight);
+
                 audio.playAlienLaser();
+            }
+        }
+
+        const normalInvaders = this.invaders.filter(inv => inv.isAlive && inv.type !== 'boss');
+        if (normalInvaders.length > 0) {
+            let baseShootChance;
+            if (this.gameMode === 'campaign') {
+                baseShootChance = 0.0015 + Math.min(0.015, (this.currentWave - 1) * 0.001);
+            } else {
+                baseShootChance = 0.0015 + (this.currentWave - 1) * 0.0012;
+            }
+
+            if (this.activeModifier === 'MASSIVE_FIRE') {
+                baseShootChance *= 2.5;
+            }
+
+            if (Math.random() < baseShootChance) {
+                const columns = {};
+                normalInvaders.forEach(inv => {
+                    const col = Math.floor(inv.x / 50);
+                    if (!columns[col]) columns[col] = [];
+                    columns[col].push(inv);
+                });
+
+                const colKeys = Object.keys(columns);
+                if (colKeys.length > 0) {
+                    const randomColKey = colKeys[Math.floor(Math.random() * colKeys.length)];
+                    const colInvaders = columns[randomColKey];
+
+                    let lowestInvader = colInvaders[0];
+                    colInvaders.forEach(inv => {
+                        if (inv.y > lowestInvader.y) {
+                            lowestInvader = inv;
+                        }
+                    });
+
+                    let alienBulletSpeed;
+                    if (this.gameMode === 'campaign') {
+                        alienBulletSpeed = 2.0 + Math.min(1.5, (this.currentWave - 1) * 0.1);
+                    } else {
+                        alienBulletSpeed = 2.0 + (this.currentWave - 1) * 0.12;
+                    }
+
+                    this.projectiles.push(new Projectile(
+                        lowestInvader.x + lowestInvader.width / 2,
+                        lowestInvader.y + lowestInvader.height,
+                        alienBulletSpeed,
+                        'alien'
+                    ));
+                    audio.playAlienLaser();
+                }
             }
         }
     }
@@ -946,14 +1309,44 @@ export class Game {
         this.projectiles.forEach(proj => {
             if (!proj.active) return;
 
-            // 1. Kolizje z Bunkrami
-            this.bunkers.forEach(bunker => {
-                bunker.checkCollision(proj, this.particles);
-            });
+            const playerLaserPhase = proj.owner === 'player' && this.player.upgrades.phaseLaser > 0;
+            if (!playerLaserPhase) {
+                this.bunkers.forEach(bunker => {
+                    bunker.checkCollision(proj, this.particles);
+                });
+            }
 
             if (!proj.active) return;
 
-            // 2. Pociski Gracza vs Kosmici
+            if (proj.owner === 'player' && this.ufo !== null) {
+                const u = this.ufo;
+                if (proj.x >= u.x && proj.x <= u.x + u.width &&
+                    proj.y >= u.y && proj.y <= u.y + u.height) {
+
+                    proj.active = false;
+                    this.ufo = null;
+
+                    const randomPoints = Math.floor(Math.random() * 201) + 100;
+                    let randomCredits = Math.floor(Math.random() * 16) + 5;
+                    if (this.activeModifier === 'UFO_STORM') {
+                        randomCredits = Math.round(randomCredits * 1.5);
+                    }
+
+                    this.score += randomPoints;
+                    this.credits += randomCredits;
+                    this.updateHUD();
+
+                    audio.playExplosion('alien');
+
+                    const pColor = varColor('--neon-pink', '#ff007f');
+                    for (let i = 0; i < 12; i++) {
+                        this.particles.push(new Particle(proj.x, proj.y, pColor));
+                    }
+                }
+            }
+
+            if (!proj.active) return;
+
             if (proj.owner === 'player') {
                 this.invaders.forEach(inv => {
                     if (!inv.isAlive || !proj.active) return;
@@ -961,36 +1354,77 @@ export class Game {
                     if (proj.x >= inv.x && proj.x <= inv.x + inv.width &&
                         proj.y >= inv.y && proj.y <= inv.y + inv.height) {
 
-                        // Zadaj obrażenia (odjmij 1 HP wrogowi)
+                        if (inv.type === 'boss') {
+                            const relX = proj.x - inv.x;
+                            let isShielded = false;
+                            if (this.bossShieldMode === 'center') {
+                                if (relX >= 50 && relX <= 110) {
+                                    isShielded = true;
+                                }
+                            } else if (this.bossShieldMode === 'sides') {
+                                if (relX < 50 || relX > 110) {
+                                    isShielded = true;
+                                }
+                            }
+
+                            if (isShielded && Math.random() < 0.8) {
+                                proj.active = false;
+                                audio.playExplosion('hit');
+                                const shieldColor = varColor('--neon-cyan', '#00f3ff');
+                                for (let i = 0; i < 6; i++) {
+                                    this.particles.push(new Particle(proj.x, proj.y, shieldColor));
+                                }
+                                return;
+                            }
+                        }
+
                         inv.hp--;
                         proj.active = false;
 
                         if (inv.hp > 0) {
-                            // Kosmita wciąż żyje - odtwórz metaliczny dźwięk uderzenia i małe iskry
                             audio.playExplosion('hit');
                             for (let i = 0; i < 4; i++) {
                                 this.particles.push(new Particle(proj.x, proj.y, inv.getColor()));
                             }
+
+                            if (inv.type === 'boss') {
+                                const hp = inv.hp;
+                                if ((hp === 45 && !this.bossSpawnMilestones[45]) ||
+                                    (hp === 30 && !this.bossSpawnMilestones[30]) ||
+                                    (hp === 15 && !this.bossSpawnMilestones[15])) {
+                                    this.bossSpawnMilestones[hp] = true;
+                                    this.spawnBossMinions();
+                                }
+                            }
                         } else {
-                            // Kosmita zostaje zniszczony!
                             inv.isAlive = false;
-                            this.score += inv.points;
                             
-                            // Gwarantowane 1 moneta za każdego zniszczonego przeciwnika
-                            this.credits += 1;
+                            let scoreGain = inv.points;
+                            let creditsGain = 1;
+                            if (this.gameMode === 'infinite') {
+                                if (this.activeModifier === 'FAST_INVADERS') {
+                                    scoreGain = Math.round(scoreGain * 1.5);
+                                    creditsGain = 2;
+                                } else if (this.activeModifier === 'REVERSED_CONTROL') {
+                                    scoreGain = scoreGain * 2;
+                                    creditsGain = creditsGain * 2;
+                                }
+                            }
+
+                            this.score += scoreGain;
+                            this.credits += creditsGain;
                             this.updateHUD();
 
                             audio.playExplosion('alien');
 
                             for (let i = 0; i < 10; i++) {
                                 this.particles.push(new Particle(
-                                    inv.x + inv.width/2, 
-                                    inv.y + inv.height/2, 
+                                    inv.x + inv.width / 2,
+                                    inv.y + inv.height / 2,
                                     inv.getColor()
                                 ));
                             }
 
-                            // Neonowy wybuch przenosi obrażenia na sąsiednie statki
                             if (proj.isExplosive) {
                                 this.triggerExplosiveAmmo(inv, proj.blastRadius);
                             }
@@ -999,14 +1433,14 @@ export class Game {
                 });
             }
 
-            // 3. Pociski Kosmitów vs Statek Gracza
+            if (!proj.active) return;
+
             if (proj.owner === 'alien' && this.player.isAlive) {
                 if (proj.x >= this.player.x && proj.x <= this.player.x + this.player.width &&
                     proj.y >= this.player.y && proj.y <= this.player.y + this.player.height) {
 
                     proj.active = false;
-                    
-                    // God Mode w trybie debugowania
+
                     const godMode = localStorage.getItem('dbg_god_mode') === 'true';
                     if (godMode) {
                         audio.playExplosion('hit');
@@ -1018,14 +1452,14 @@ export class Game {
 
                     this.player.lives--;
                     this.updateHUD();
-                    
+
                     audio.playExplosion('player');
 
                     const pColor = varColor('--neon-green', '#39ff14');
                     for (let i = 0; i < 15; i++) {
                         this.particles.push(new Particle(
-                            this.player.x + this.player.width/2,
-                            this.player.y + this.player.height/2,
+                            this.player.x + this.player.width / 2,
+                            this.player.y + this.player.height / 2,
                             pColor
                         ));
                     }
@@ -1041,11 +1475,23 @@ export class Game {
         });
     }
 
+    spawnBossMinions() {
+        audio.playLevelUp();
+        const minionTypes = ['squid', 'crab', 'octopus'];
+        const type = minionTypes[Math.floor(Math.random() * minionTypes.length)];
+        for (let i = 0; i < 6; i++) {
+            const mX = 150 + i * 80;
+            const mY = 180;
+            const minion = new Invader(mX, mY, type, 2);
+            this.invaders.push(minion);
+        }
+    }
+
     triggerExplosiveAmmo(centerInvader, blastLvl) {
         const radius = blastLvl === 1 ? 65 : 95;
         const color = varColor('--neon-cyan', '#00f3ff');
-        const centerX = centerInvader.x + centerInvader.width/2;
-        const centerY = centerInvader.y + centerInvader.height/2;
+        const centerX = centerInvader.x + centerInvader.width / 2;
+        const centerY = centerInvader.y + centerInvader.height / 2;
 
         for (let angle = 0; angle < Math.PI * 2; angle += 0.4) {
             const p = new Particle(centerX, centerY, color);
@@ -1057,12 +1503,11 @@ export class Game {
         this.invaders.forEach(inv => {
             if (!inv.isAlive) return;
 
-            const invX = inv.x + inv.width/2;
-            const invY = inv.y + inv.height/2;
+            const invX = inv.x + inv.width / 2;
+            const invY = inv.y + inv.height / 2;
             const dist = Math.sqrt(Math.pow(invX - centerX, 2) + Math.pow(invY - centerY, 2));
 
             if (dist <= radius) {
-                // Wybuch zadaje 1 punkt obrażeń
                 inv.hp--;
 
                 if (inv.hp > 0) {
@@ -1071,11 +1516,23 @@ export class Game {
                     }
                 } else {
                     inv.isAlive = false;
-                    this.score += inv.points;
                     
-                    // Gwarantowane 1 moneta za każdego zniszczonego przeciwnika
-                    this.credits += 1;
-                    
+                    let scoreGain = inv.points;
+                    let creditsGain = 1;
+                    if (this.gameMode === 'infinite') {
+                        if (this.activeModifier === 'FAST_INVADERS') {
+                            scoreGain = Math.round(scoreGain * 1.5);
+                            creditsGain = 2;
+                        } else if (this.activeModifier === 'REVERSED_CONTROL') {
+                            scoreGain = scoreGain * 2;
+                            creditsGain = creditsGain * 2;
+                        }
+                    }
+
+                    this.score += scoreGain;
+                    this.credits += creditsGain;
+                    this.updateHUD();
+
                     for (let i = 0; i < 6; i++) {
                         this.particles.push(new Particle(invX, invY, inv.getColor()));
                     }
@@ -1094,7 +1551,112 @@ export class Game {
             this.bunkers.forEach(b => b.draw(this.ctx));
             this.player.draw(this.ctx);
             this.invaders.forEach(inv => inv.draw(this.ctx));
-            
+
+            // Rysowanie UFO
+            if (this.ufo !== null) {
+                const u = this.ufo;
+                const uColor = varColor('--neon-pink', '#ff007f');
+                const sprite = SPRITES.ufo[u.animFrame];
+                drawPixelSprite(this.ctx, sprite, u.x, u.y, u.width, u.height, uColor, true);
+            }
+
+            // Rysowanie tarczy Bossa i paska HP Bossa
+            const boss = this.invaders.find(inv => inv.isAlive && inv.type === 'boss');
+            if (boss) {
+                // Tarcze sektorowe
+                this.ctx.save();
+                this.ctx.lineWidth = 3;
+                this.ctx.shadowBlur = 8;
+                const shieldColor = varColor('--neon-cyan', '#00f3ff');
+                this.ctx.strokeStyle = shieldColor;
+                this.ctx.shadowColor = shieldColor;
+
+                const shieldY = boss.y + boss.height + 6;
+
+                if (this.bossShieldMode === 'center') {
+                    this.ctx.beginPath();
+                    this.ctx.arc(boss.x + 80, shieldY - 20, 30, 0.2, Math.PI - 0.2);
+                    this.ctx.stroke();
+                } else if (this.bossShieldMode === 'sides') {
+                    this.ctx.beginPath();
+                    this.ctx.arc(boss.x + 25, shieldY - 20, 25, 0.3, Math.PI - 0.3);
+                    this.ctx.stroke();
+
+                    this.ctx.beginPath();
+                    this.ctx.arc(boss.x + 135, shieldY - 20, 25, 0.3, Math.PI - 0.3);
+                    this.ctx.stroke();
+                }
+                this.ctx.restore();
+
+                // Pasek życia Bossa
+                this.ctx.save();
+                this.ctx.fillStyle = '#ffffff';
+                this.ctx.font = '10px "Courier New", monospace';
+                this.ctx.textAlign = 'center';
+                this.ctx.fillText("STATEK MATKA - BOSS", 400, 15);
+
+                this.ctx.strokeStyle = '#ffffff';
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeRect(150, 20, 500, 12);
+
+                const hpPercent = boss.hp / boss.maxHp;
+                const fillWidth = 500 * hpPercent;
+                
+                let hpColor = '#00f3ff';
+                if (hpPercent < 0.3) {
+                    hpColor = '#ff3333';
+                    if (Math.floor(Date.now() / 150) % 2 === 0) {
+                        hpColor = '#ff6666';
+                    }
+                } else if (hpPercent < 0.7) {
+                    hpColor = '#ffdf00';
+                }
+
+                this.ctx.fillStyle = hpColor;
+                this.ctx.shadowBlur = 8;
+                this.ctx.shadowColor = hpColor;
+                this.ctx.fillRect(150, 20, fillWidth, 12);
+                this.ctx.restore();
+            }
+
+            // Rysowanie aktywnego modyfikatora
+            if (this.gameMode === 'infinite' && this.activeModifier !== 'NORMAL') {
+                this.ctx.save();
+                this.ctx.font = '10px "Courier New", monospace';
+                this.ctx.textAlign = 'left';
+                
+                let modText = '';
+                let modColor = '#00f3ff';
+                switch (this.activeModifier) {
+                    case 'FAST_INVADERS':
+                        modText = 'MOD: SZYBCY NAJEZDZCY';
+                        modColor = '#ffdf00';
+                        break;
+                    case 'MASSIVE_FIRE':
+                        modText = 'MOD: ZMASOWANY OSTRZAL';
+                        modColor = '#ff3333';
+                        break;
+                    case 'UFO_STORM':
+                        modText = 'MOD: BURZA UFO';
+                        modColor = '#ff007f';
+                        break;
+                    case 'SHIELD_FAIL':
+                        modText = 'MOD: AWARIA TARCZ (COOLDOWN -25%)';
+                        modColor = '#39ff14';
+                        break;
+                    case 'REVERSED_CONTROL':
+                        modText = 'MOD: ODWRCONE STEROWANIE (2x PKT/MONETY)';
+                        modColor = '#00f3ff';
+                        break;
+                }
+                
+                this.ctx.fillStyle = modColor;
+                this.ctx.shadowBlur = 6;
+                this.ctx.shadowColor = modColor;
+                this.ctx.fillText(modText, 15, 20);
+                this.ctx.restore();
+            }
+
             this.projectiles.forEach(proj => proj.draw(this.ctx));
             this.particles.forEach(p => p.draw(this.ctx));
         }
@@ -1103,9 +1665,9 @@ export class Game {
     drawStars() {
         this.ctx.save();
         this.ctx.fillStyle = '#ffffff';
-        
+
         const time = Date.now() * 0.0008;
-        
+
         for (let i = 0; i < 40; i++) {
             const seedX = Math.sin(i * 1234.56) * 0.5 + 0.5;
             const seedY = Math.cos(i * 9876.54) * 0.5 + 0.5;
@@ -1113,9 +1675,9 @@ export class Game {
 
             const x = Math.floor(seedX * this.virtualW);
             let y = Math.floor((seedY * this.virtualH + time * (10 + sizeSeed * 10)) % this.virtualH);
-            
+
             const alpha = 0.2 + Math.abs(Math.sin(time + i)) * 0.6;
-            
+
             this.ctx.globalAlpha = alpha;
             this.ctx.fillRect(x, y, sizeSeed * 2 + 1, sizeSeed * 2 + 1);
         }
@@ -1124,7 +1686,7 @@ export class Game {
 
     loop(currentTime) {
         if (!this.lastTime) this.lastTime = currentTime;
-        
+
         const elapsed = currentTime - this.lastTime;
         this.lastTime = currentTime;
 

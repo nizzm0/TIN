@@ -12,7 +12,7 @@ export class Bunker {
         this.blockSize = 6;
         this.width = this.cols * this.blockSize;
         this.height = this.rows * this.blockSize;
-        
+
         this.blocks = [];
         for (let r = 0; r < this.rows; r++) {
             this.blocks[r] = [];
@@ -30,6 +30,16 @@ export class Bunker {
                 const isArch = (r >= 5 && c >= 4 && c <= 7);
                 const isCorner = (r === 0 && (c === 0 || c === 11)) || (r === 1 && (c === 0 || c === 11));
                 this.blocks[r][c] = !(isArch || isCorner);
+            }
+        }
+    }
+
+    damageRandomly(factor) {
+        for (let r = 0; r < this.rows; r++) {
+            for (let c = 0; c < this.cols; c++) {
+                if (this.blocks[r][c] && Math.random() < factor) {
+                    this.blocks[r][c] = false;
+                }
             }
         }
     }
@@ -57,8 +67,8 @@ export class Bunker {
     checkCollision(projectile, particles) {
         if (!projectile.active) return false;
 
-        if (projectile.x + projectile.width/2 >= this.x &&
-            projectile.x - projectile.width/2 <= this.x + this.width &&
+        if (projectile.x + projectile.width / 2 >= this.x &&
+            projectile.x - projectile.width / 2 <= this.x + this.width &&
             projectile.y + projectile.height >= this.y &&
             projectile.y <= this.y + this.height) {
 
@@ -73,7 +83,7 @@ export class Bunker {
                         this.blocks[hitR][hitC] = false;
                         this.spawnBlockParticles(this.x + hitC * this.blockSize, this.y + hitR * this.blockSize, particles);
                     }
-                    
+
                     projectile.active = false;
                     audio.playExplosion('alien');
                     return true;
@@ -90,8 +100,8 @@ export class Bunker {
                     if (this.blocks[r][c]) {
                         this.blocks[r][c] = false;
                         this.spawnBlockParticles(
-                            this.x + c * this.blockSize + this.blockSize/2, 
-                            this.y + r * this.blockSize + this.blockSize/2, 
+                            this.x + c * this.blockSize + this.blockSize / 2,
+                            this.y + r * this.blockSize + this.blockSize / 2,
                             particles
                         );
                     }
