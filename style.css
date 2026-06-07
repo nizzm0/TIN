@@ -715,67 +715,7 @@ body {
     transform: scale(0.95);
 }
 
-/* KONTROLKI MOBILNE */
-.mobile-controller {
-    display: none;
-    padding: 20px;
-    background-color: #08080c;
-    border-top: 5px solid var(--cabinet-border);
-    justify-content: space-between;
-    align-items: center;
-    gap: 20px;
-}
 
-.d-pad {
-    display: flex;
-    gap: 15px;
-}
-
-.mobile-btn {
-    background-color: #1a1a26;
-    border: 3px solid #33334d;
-    color: #fff;
-    font-size: 1.5rem;
-    width: 65px;
-    height: 65px;
-    border-radius: 50%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-    touch-action: manipulation;
-}
-
-.mobile-btn:active {
-    background-color: var(--neon-cyan);
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 15px var(--neon-cyan);
-    color: #000;
-}
-
-.action-pad {
-    display: flex;
-}
-
-.fire-btn {
-    width: 80px;
-    height: 80px;
-    background-color: #3d001e;
-    border-color: var(--neon-pink);
-    color: var(--neon-pink);
-    font-family: var(--font-family);
-    font-size: 0.75rem;
-    font-weight: bold;
-    box-shadow: 0 4px 8px rgba(255, 0, 127, 0.2);
-}
-
-.fire-btn:active {
-    background-color: var(--neon-pink);
-    border-color: var(--neon-pink);
-    box-shadow: 0 0 20px var(--neon-pink);
-    color: #fff;
-}
 
 /* ANIMACJE */
 @keyframes textPulse {
@@ -845,13 +785,7 @@ body {
         padding: 10px 20px !important;
     }
 
-    .cabinet-controls {
-        display: none; /* Ukryj dolne przyciski na mobile, wirtualne przyciski będą zamiast */
-    }
 
-    .mobile-controller {
-        display: flex; /* Pokaż mobilne przyciski */
-    }
     
     .hud {
         padding: 8px 10px;

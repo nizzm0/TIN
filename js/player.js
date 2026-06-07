@@ -46,10 +46,10 @@ export class Player {
         if (!this.isAlive) return;
 
         const speed = this.getSpeed();
-        if (keys['ArrowLeft'] || keys['KeyA'] || keys['leftMobile']) {
+        if (keys['ArrowLeft'] || keys['KeyA']) {
             this.x -= speed;
         }
-        if (keys['ArrowRight'] || keys['KeyD'] || keys['rightMobile']) {
+        if (keys['ArrowRight'] || keys['KeyD']) {
             this.x += speed;
         }
 

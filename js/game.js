@@ -116,35 +116,6 @@ export class Game {
             }
         });
 
-        const btnLeft = document.getElementById('btnLeft');
-        const btnRight = document.getElementById('btnRight');
-        const btnFire = document.getElementById('btnFire');
-
-        const addTouchEvents = (btn, key) => {
-            btn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                this.keys[key] = true;
-            });
-            btn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                this.keys[key] = false;
-            });
-        };
-
-        addTouchEvents(btnLeft, 'leftMobile');
-        addTouchEvents(btnRight, 'rightMobile');
-
-        btnFire.addEventListener('touchstart', (e) => {
-            e.preventDefault();
-            this.keys['fireMobile'] = true;
-            if (this.currentState === this.states.PLAYING && this.player.upgrades.autofire === 0) {
-                this.player.shoot(this.projectiles);
-            }
-        });
-        btnFire.addEventListener('touchend', (e) => {
-            e.preventDefault();
-            this.keys['fireMobile'] = false;
-        });
     }
 
     initUIEvents() {
@@ -850,8 +821,8 @@ export class Game {
         // 1. Aktualizacja Gracza
         this.player.update(this.keys, this.virtualW);
 
-        // Ciągły ogień (Autofire) jeśli ulepszenie jest odblokowane i klawisz spacji lub przycisk mobilny są wciśnięte
-        if (this.player.upgrades.autofire > 0 && (this.keys['Space'] || this.keys['fireMobile'])) {
+        // Ciągły ogień (Autofire) jeśli ulepszenie jest odblokowane i klawisz spacji jest wciśnięty
+        if (this.player.upgrades.autofire > 0 && this.keys['Space']) {
             this.player.shoot(this.projectiles);
         }
 
