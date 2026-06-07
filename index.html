@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -10,6 +11,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <!-- Kontener całej strony - Automat retro -->
     <div class="cabinet-container">
@@ -83,11 +85,11 @@
                     <div class="menu-options">
                         <button class="btn-retro glow-green" id="btnCampaign">
                             <span class="btn-title">KAMPANIA</span>
-                            <span class="btn-desc">20 trudniejszych fal do pokonania</span>
+                            <span class="btn-desc">20 fal konczacych sie walka z bossem</span>
                         </button>
                         <button class="btn-retro glow-cyan" id="btnInfinite">
                             <span class="btn-title">NIESKONCZONOSC</span>
-                            <span class="btn-desc">Graj bez konca z ulepszeniami</span>
+                            <span class="btn-desc">Graj bez konca, z modyfikatorami rozgrywki</span>
                         </button>
                     </div>
                 </div>
@@ -130,7 +132,8 @@
                         <p class="pause-sub">Gra jest wstrzymana</p>
                         <div class="pause-buttons">
                             <button class="btn-retro btn-small glow-cyan" id="btnResume">WZNOW [ESC]</button>
-                            <button class="btn-retro btn-small glow-green admin-only" id="btnPauseDebugPanel" style="display: none;">TRYB DEBUG</button>
+                            <button class="btn-retro btn-small glow-green admin-only" id="btnPauseDebugPanel"
+                                style="display: none;">TRYB DEBUG</button>
                             <button class="btn-retro btn-small glow-pink" id="btnExitToMenu">MENU GLOWNE</button>
                         </div>
                     </div>
@@ -141,11 +144,12 @@
                     <div class="game-over-content">
                         <h2 class="neon-text glow-pink red">KONIEC GRY</h2>
                         <p class="game-over-status" id="gameOverStatus">Kosmici opanowali Ziemie!</p>
-                        
+
                         <div class="stats-panel">
                             <div class="stat-row">ZDOBYTE PUNKTY: <span class="cyan" id="finalScore">0</span></div>
                             <div class="stat-row">POKONANE FALE: <span class="green" id="finalWaves">0</span></div>
-                            <div class="stat-row">WALUTA NA KONIEC: <span class="yellow" id="finalCredits">0 $</span></div>
+                            <div class="stat-row">WALUTA NA KONIEC: <span class="yellow" id="finalCredits">0 $</span>
+                            </div>
                         </div>
 
                         <div class="game-over-buttons">
@@ -164,7 +168,8 @@
                         <div class="stats-panel">
                             <div class="stat-row">KONCOWY WYNIK: <span class="cyan" id="vicScore">0</span></div>
                             <div class="stat-row">ZESTRZELENI KOSMICI: <span class="green" id="vicAliens">0</span></div>
-                            <div class="stat-row">PROFIL OCALONEGO: <span class="yellow" id="vicLevel">Mistrz Obrony</span></div>
+                            <div class="stat-row">PROFIL OCALONEGO: <span class="yellow" id="vicLevel">Mistrz
+                                    Obrony</span></div>
                         </div>
 
                         <div class="victory-buttons">
@@ -181,7 +186,7 @@
                             <button class="auth-tab active" id="tabLogin">ZALOGUJ</button>
                             <button class="auth-tab" id="tabRegister">REJESTRACJA</button>
                         </div>
-                        
+
                         <!-- Formularz logowania -->
                         <form id="formLogin" class="auth-form">
                             <div class="input-group">
@@ -194,7 +199,7 @@
                             </div>
                             <button type="submit" class="btn-retro glow-green btn-auth-submit">ZALOGUJ</button>
                         </form>
-                        
+
                         <!-- Formularz rejestracji -->
                         <form id="formRegister" class="auth-form" style="display: none;">
                             <div class="input-group">
@@ -211,9 +216,9 @@
                             </div>
                             <button type="submit" class="btn-retro glow-cyan btn-auth-submit">ZAREJESTRUJ</button>
                         </form>
-                        
+
                         <div id="authMessage" class="auth-message"></div>
-                        
+
                         <button class="btn-retro glow-pink btn-auth-back" id="btnBackToMenu">POWROT</button>
                     </div>
                 </div>
@@ -223,17 +228,19 @@
                     <div class="admin-container">
                         <h2 class="neon-text glow-green">KONSOLA ADMINA</h2>
                         <p class="admin-subtitle">USTAWIENIA TRYBU DEBUGOWANIA</p>
-                        
+
                         <div class="admin-grid">
 
                             <div class="admin-option">
                                 <span class="option-label">SKOCZ DO FALI</span>
                                 <div class="dbg-wave-selector-group">
-                                    <input type="number" class="dbg-num-input" id="dbgStartWave" min="1" max="999" value="1">
-                                    <button class="bezel-btn btn-auth-small glow-green" id="btnDbgJumpWave">TELEPORT</button>
+                                    <input type="number" class="dbg-num-input" id="dbgStartWave" min="1" max="999"
+                                        value="1">
+                                    <button class="bezel-btn btn-auth-small glow-green"
+                                        id="btnDbgJumpWave">TELEPORT</button>
                                 </div>
                             </div>
-                            
+
                             <div class="admin-option">
                                 <span class="option-label">GOD MODE (NIESMIERTELNOSC)</span>
                                 <label class="retro-switch">
@@ -241,7 +248,7 @@
                                     <span class="retro-slider"></span>
                                 </label>
                             </div>
-                            
+
                             <div class="admin-option">
                                 <span class="option-label">NIESKONCZONA WALUTA</span>
                                 <label class="retro-switch">
@@ -249,7 +256,7 @@
                                     <span class="retro-slider"></span>
                                 </label>
                             </div>
-                            
+
                             <div class="admin-option">
                                 <span class="option-label">AUTO-STRZAL OD POCZATKU</span>
                                 <label class="retro-switch">
@@ -258,7 +265,7 @@
                                 </label>
                             </div>
                         </div>
-                        
+
                         <div class="admin-actions">
                             <button class="btn-retro glow-yellow" id="btnDbgMaxUpgrades">MAX ULEPSZENIA</button>
                             <button class="btn-retro glow-pink" id="btnBackFromAdmin">POWROT</button>
@@ -271,19 +278,23 @@
                     <div class="admin-container">
                         <h2 class="neon-text glow-green">PANEL ADMINA</h2>
                         <p class="admin-subtitle">ZARZADZANIE SYSTEMEM ARCADE</p>
-                        
+
                         <!-- Funkcje administracyjne -->
-                        <div class="admin-dashboard-actions" style="width: 100%; display: flex; gap: 15px; margin: 5px 0 10px 0;">
-                            <button class="btn-retro glow-pink btn-small" id="btnClearLeaderboard" style="flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
+                        <div class="admin-dashboard-actions"
+                            style="width: 100%; display: flex; gap: 15px; margin: 5px 0 10px 0;">
+                            <button class="btn-retro glow-pink btn-small" id="btnClearLeaderboard"
+                                style="flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
                                 WYCZYSC TABELE LIDEROW
                             </button>
-                            <button class="btn-retro glow-cyan btn-small" id="btnToggleManageLeaderboard" style="display: none; flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
+                            <button class="btn-retro glow-cyan btn-small" id="btnToggleManageLeaderboard"
+                                style="display: none; flex: 1; padding: 12px; font-size: 0.55rem; border-radius: 6px;">
                                 ZARZADZAJ WYNIKAMI
                             </button>
                         </div>
-                        
-                        <p class="admin-subtitle" id="userAdminSubtitle" style="margin-top: 10px; margin-bottom: 5px; color: #88cc88;">ZAREJESTROWANI PILOCI</p>
-                        
+
+                        <p class="admin-subtitle" id="userAdminSubtitle"
+                            style="margin-top: 10px; margin-bottom: 5px; color: #88cc88;">ZAREJESTROWANI PILOCI</p>
+
                         <div class="user-list-container" id="userListContainer">
                             <table class="user-table">
                                 <thead>
@@ -315,7 +326,7 @@
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         <button class="btn-retro glow-pink" id="btnBackFromUserAdmin">POWROT</button>
                     </div>
                 </div>
@@ -328,7 +339,7 @@
             <button class="bezel-btn" id="btnMute" title="Wycisz/Wlacz dzwiek">
                 <span id="muteIcon">🔊</span> AUDIO
             </button>
-            
+
             <!-- Panel autoryzacji na obudowie -->
             <div class="cabinet-auth-section" id="authStatusBar">
                 <div class="auth-status-info">
@@ -337,10 +348,11 @@
                 </div>
                 <div class="auth-status-buttons">
                     <button class="bezel-btn btn-auth-small" id="btnAuthAction">KONTO</button>
-                    <button class="bezel-btn btn-auth-small admin-only" id="btnUserAdminPanel" style="display: none;">PANEL ADMINA</button>
+                    <button class="bezel-btn btn-auth-small admin-only" id="btnUserAdminPanel"
+                        style="display: none;">PANEL ADMINA</button>
                 </div>
             </div>
-            
+
             <button class="bezel-btn" id="btnPauseBezel" title="Pauza">
                 ⏸ PAUZA
             </button>
@@ -352,4 +364,5 @@
     <!-- Skrypt gry jako moduł ES6 -->
     <script type="module" src="js/main.js"></script>
 </body>
+
 </html>
