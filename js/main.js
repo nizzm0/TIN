@@ -654,7 +654,8 @@ window.addEventListener('DOMContentLoaded', () => {
                     bulletSpeed: 5,
                     multiShot: 2,
                     explosive: 2,
-                    autofire: 1
+                    autofire: 1,
+                    phaseLaser: 1
                 };
                 audio.playLevelUp();
                 

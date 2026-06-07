@@ -714,8 +714,7 @@ export class Game {
                     const price = parseInt(e.target.getAttribute('data-price'));
 
                     this.credits -= price;
-                    this.player.upgrades[key]++;
-
+                    this.player.upgrades[key] = (this.player.upgrades[key] || 0) + 1;
                     audio.playShopBuy();
                     this.renderShop();
                     this.updateHUD();

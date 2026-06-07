@@ -397,6 +397,7 @@ body {
     border-radius: 10px;
     overflow: hidden;
     position: relative;
+    margin: 0 auto;
 }
 
 .loading-bar {
