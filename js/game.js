@@ -6,18 +6,8 @@ import { Particle } from './particle.js';
 import { Projectile } from './projectile.js';
 import { varColor } from './utils.js';
 import { SPRITES, drawPixelSprite } from './sprites.js';
-import { db } from './firebase.js';
-import {
-    collection,
-    getDocs,
-    query,
-    orderBy,
-    limit,
-    doc,
-    getDoc,
-    setDoc,
-    deleteDoc
-} from "https://www.gstatic.com/firebasejs/12.14.0/firebase-firestore.js";
+import { leaderboardService } from './leaderboardService.js';
+import { getCampaignWaveConfig, generateInfiniteWaveConfig } from './waveConfig.js';
 
 // --- GŁÓWNA KLASA GRY ---
 export class Game {
@@ -205,11 +195,8 @@ export class Game {
         tbody.innerHTML = '';
 
         try {
-            // Pobieramy 5 najlepszych wyników z Firestore
-            const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'), limit(5));
-            const querySnapshot = await getDocs(q);
-
-            if (querySnapshot.empty) {
+            const topScores = await leaderboardService.fetchTopScores(5);
+            if (topScores.length === 0) {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td colspan="4" style="color: var(--neon-pink); padding: 2cqw 0; font-size: 1.2cqw;">BRAK ZAPISANYCH WYNIKOW</td>`;
                 tbody.appendChild(tr);
@@ -217,11 +204,8 @@ export class Game {
             }
 
             let idx = 0;
-            querySnapshot.forEach((doc) => {
-                const entry = doc.data();
+            topScores.forEach((entry) => {
                 const tr = document.createElement('tr');
-
-                // Kolorowanie pozycji liderów w stylu retro
                 let userClass = 'cyan';
                 if (idx === 0) userClass = 'yellow';
                 else if (idx === 1) userClass = 'green';
@@ -245,38 +229,10 @@ export class Game {
     async saveScoreToLeaderboard() {
         const user = JSON.parse(localStorage.getItem('arcade_current_user') || 'null');
         const name = user ? user.username : 'GOSC';
-        const docId = name.toLowerCase();
 
         try {
-            const leaderboardDocRef = doc(db, 'leaderboard', docId);
+            await leaderboardService.saveScore(name, this.currentWave, this.score);
 
-            // Sprawdzamy dotychczasowy najlepszy wynik dla tego pilota/goscia
-            const docSnap = await getDoc(leaderboardDocRef);
-            let shouldSave = true;
-
-            if (docSnap.exists()) {
-                const existingEntry = docSnap.data();
-                // Zapisujemy tylko jeśli nowy wynik jest wyższy
-                if (this.score <= existingEntry.score) {
-                    shouldSave = false;
-                }
-            }
-
-            if (shouldSave) {
-                const entry = {
-                    username: name,
-                    wave: this.currentWave,
-                    score: this.score,
-                    date: Date.now()
-                };
-
-                await setDoc(leaderboardDocRef, entry);
-                console.log(`Saved new high score for ${name}: ${this.score}`);
-            } else {
-                console.log(`Score ${this.score} is not higher than existing record for ${name}.`);
-            }
-
-            // Kompatybilność wsteczna z starym systemem high score (localStorage)
             if (this.score > this.highScore) {
                 this.highScore = this.score;
                 localStorage.setItem('arcade_highscore', this.highScore);
@@ -290,15 +246,9 @@ export class Game {
 
     async clearLeaderboard() {
         try {
-            const querySnapshot = await getDocs(collection(db, 'leaderboard'));
-            const deletePromises = [];
-            querySnapshot.forEach((docSnap) => {
-                deletePromises.push(deleteDoc(doc(db, 'leaderboard', docSnap.id)));
-            });
-            await Promise.all(deletePromises);
-            console.log("Leaderboard cleared successfully in Firestore.");
+            await leaderboardService.clearAllScores();
+            console.log("Leaderboard cleared successfully.");
 
-            // Czyszczenie lokalnego najwyższego wyniku
             this.highScore = 0;
             localStorage.removeItem('arcade_highscore');
 
@@ -310,49 +260,18 @@ export class Game {
         }
     }
 
-    /**
-     * Pobiera pelna liste wynikow z tabeli liderow (bez limitu).
-     * @returns {Promise<Array>} Lista wynikow
-     */
     async getLeaderboardList() {
         try {
-            const q = query(collection(db, 'leaderboard'), orderBy('score', 'desc'));
-            const querySnapshot = await getDocs(q);
-            const list = [];
-            querySnapshot.forEach(docSnap => {
-                list.push({
-                    id: docSnap.id,
-                    ...docSnap.data()
-                });
-            });
-            return list;
+            return await leaderboardService.getAllScores();
         } catch (err) {
             console.error("Error fetching leaderboard list:", err);
             return [];
         }
     }
 
-    /**
-     * Aktualizuje konkretny wpis w tabeli liderow.
-     * @param {string} docId Identyfikator dokumentu (nazwa gracza lowercase)
-     * @param {number} wave Nowa fala
-     * @param {number} score Nowy wynik
-     * @returns {Promise<{success: boolean, message?: string}>} Wynik operacji
-     */
     async updateLeaderboardEntry(docId, wave, score) {
         try {
-            const leaderboardDocRef = doc(db, 'leaderboard', docId);
-            const docSnap = await getDoc(leaderboardDocRef);
-            if (!docSnap.exists()) {
-                return { success: false, message: "Dokument nie istnieje!" };
-            }
-            const data = docSnap.data();
-            await setDoc(leaderboardDocRef, {
-                ...data,
-                wave: wave,
-                score: score,
-                date: Date.now()
-            });
+            await leaderboardService.updateScore(docId, wave, score);
             return { success: true };
         } catch (err) {
             console.error("Error updating leaderboard entry:", err);
@@ -360,15 +279,9 @@ export class Game {
         }
     }
 
-    /**
-     * Usuwa konkretny wpis z tabeli liderow.
-     * @param {string} docId Identyfikator dokumentu
-     * @returns {Promise<{success: boolean, message?: string}>} Wynik operacji
-     */
     async deleteLeaderboardEntry(docId) {
         try {
-            const leaderboardDocRef = doc(db, 'leaderboard', docId);
-            await deleteDoc(leaderboardDocRef);
+            await leaderboardService.deleteScore(docId);
             return { success: true };
         } catch (err) {
             console.error("Error deleting leaderboard entry:", err);
@@ -419,145 +332,6 @@ export class Game {
         }
     }
 
-    getCampaignWaveConfig(waveNum) {
-        const configs = {
-            1: {
-                name: "PIERWSZY KONTAKT",
-                layout: 'wedge',
-                rows: ['octopus', 'octopus', 'octopus']
-            },
-            2: {
-                name: "ZWIAD NAJEZDZCOW",
-                layout: 'v_shape',
-                rows: ['octopus', 'octopus', 'octopus']
-            },
-            3: {
-                name: "ZAGESZCZENIE SZYKU",
-                layout: 'split_column',
-                rows: ['octopus', 'octopus', 'octopus']
-            },
-            4: {
-                name: "KLIN OFENSYWNY",
-                layout: 'wedge',
-                rows: ['crab', 'octopus', 'octopus', 'octopus']
-            },
-            5: {
-                name: "PAS ASTEROIDOW",
-                layout: 'v_shape',
-                rows: ['crab', 'crab', 'octopus', 'octopus']
-            },
-            6: {
-                name: "SZACHOWNICA",
-                layout: 'checkerboard',
-                rows: ['crab', 'crab', 'octopus', 'octopus', 'octopus']
-            },
-            7: {
-                name: "ROZPROSZENIE",
-                layout: 'staggered',
-                rows: ['crab', 'crab', 'crab', 'octopus', 'octopus']
-            },
-            8: {
-                name: "KOLUMNA SZTURMOWA",
-                layout: 'columns',
-                rows: ['crab', 'crab', 'crab', 'octopus', 'octopus']
-            },
-            9: {
-                name: "MUR GENERATOROW",
-                layout: 'standard',
-                rows: ['crab', 'crab', 'octopus', 'octopus']
-            },
-            10: {
-                name: "CZYSTKA CYJANKOWA",
-                layout: 'split_column',
-                rows: ['squid', 'squid', 'crab', 'crab', 'octopus']
-            },
-            11: {
-                name: "FORMACJA W",
-                layout: 'v_shape',
-                rows: ['squid', 'squid', 'crab', 'crab', 'octopus']
-            },
-            12: {
-                name: "SZYK BITEWNY X",
-                layout: 'checkerboard',
-                rows: ['squid', 'squid', 'squid', 'crab', 'crab']
-            },
-            13: {
-                name: "KLESZCZE BOJOWE",
-                layout: 'columns',
-                rows: ['squid', 'squid', 'squid', 'crab', 'crab']
-            },
-            14: {
-                name: "FORT KOSMICZNY",
-                layout: 'crown',
-                rows: ['squid', 'squid', 'squid', 'crab', 'crab']
-            },
-            15: {
-                name: "SCIANA SMUTKU",
-                layout: 'standard',
-                rows: ['squid', 'squid', 'squid', 'crab', 'crab']
-            },
-            16: {
-                name: "CZERWONY SWIT",
-                layout: 'split_column',
-                rows: ['red', 'red', 'squid', 'squid', 'crab'],
-                ufoChanceBoost: true
-            },
-            17: {
-                name: "DRUZYNA UFO",
-                layout: 'columns',
-                rows: ['red', 'red', 'squid', 'squid', 'crab'],
-                ufoChanceBoost: true
-            },
-            18: {
-                name: "KORONA",
-                layout: 'crown',
-                rows: ['red', 'red', 'squid', 'squid', 'crab']
-            },
-            19: {
-                name: "PIEKIELNY DESANT",
-                layout: 'standard',
-                rows: ['red', 'red', 'squid', 'squid', 'crab'],
-                descend: 2
-            },
-            20: {
-                name: "STATEK MATKA - BOSS",
-                desc: "BOSS: Uwaga na oslony sektorowe (blokuja 80% obrazen w aktywnej strefie) oraz potrojne skosne lasery! Niszcz pojawiajace sie posilki!",
-                layout: 'boss',
-                rows: []
-            }
-        };
-        return configs[waveNum] || {
-            name: `FALA ${waveNum}`,
-            layout: 'standard',
-            rows: ['red', 'squid', 'crab', 'octopus']
-        };
-    }
-
-    generateInfiniteWaveConfig() {
-        const layouts = ['standard', 'checkerboard', 'staggered', 'split_column', 'columns', 'wedge', 'v_shape'];
-        const layout = layouts[Math.floor(Math.random() * layouts.length)];
-
-        const rows = [];
-        const numRows = 5;
-        for (let r = 0; r < numRows; r++) {
-            if (this.currentWave <= 2) {
-                rows.push('octopus');
-            } else if (this.currentWave <= 5) {
-                rows.push(r <= 1 ? 'crab' : 'octopus');
-            } else if (this.currentWave <= 8) {
-                rows.push(r === 0 ? 'squid' : (r <= 2 ? 'crab' : 'octopus'));
-            } else if (this.currentWave <= 12) {
-                rows.push(r <= 1 ? 'squid' : 'crab');
-            } else {
-                rows.push(r <= 1 ? 'red' : (r <= 3 ? 'squid' : 'crab'));
-            }
-        }
-
-        return {
-            layout,
-            rows
-        };
-    }
 
     startWaveTransition() {
         this.currentState = this.states.LEVEL_TRANSITION;
@@ -604,7 +378,7 @@ export class Game {
         }
 
         if (this.gameMode === 'campaign') {
-            const config = this.getCampaignWaveConfig(this.currentWave);
+            const config = getCampaignWaveConfig(this.currentWave);
             title.textContent = `FALA ${this.currentWave}: ${config.name}`;
             desc.innerHTML = config.desc ? `<span style="color: var(--neon-cyan);">${config.desc}</span>` : '';
         } else {
@@ -643,12 +417,12 @@ export class Game {
         let descendOffset = 0;
 
         if (this.gameMode === 'campaign') {
-            const config = this.getCampaignWaveConfig(this.currentWave);
+            const config = getCampaignWaveConfig(this.currentWave);
             layoutType = config.layout;
             rowsConfig = config.rows;
             descendOffset = config.descend ? config.descend * 12 : 0;
         } else {
-            const config = this.generateInfiniteWaveConfig();
+            const config = generateInfiniteWaveConfig(this.currentWave);
             layoutType = config.layout;
             rowsConfig = config.rows;
         }
