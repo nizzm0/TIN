@@ -192,37 +192,58 @@ export class Game {
     async updateLeaderboardUI() {
         const tbody = document.getElementById('leaderboardBody');
         if (!tbody) return;
-        tbody.innerHTML = '';
 
         try {
             const topScores = await leaderboardService.fetchTopScores(5);
-            if (topScores.length === 0) {
+            tbody.innerHTML = '';
+
+            const totalRows = 5;
+            for (let i = 0; i < totalRows; i++) {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td colspan="4" style="color: var(--neon-pink); padding: 2cqw 0; font-size: 1.2cqw;">BRAK ZAPISANYCH WYNIKOW</td>`;
+                if (i < topScores.length) {
+                    const entry = topScores[i];
+                    let userClass = 'cyan';
+                    if (i === 0) userClass = 'yellow';
+                    else if (i === 1) userClass = 'green';
+                    else if (i === 2) userClass = 'pink';
+
+                    tr.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td class="${userClass}">${entry.username.toUpperCase()}</td>
+                        <td>${entry.wave}</td>
+                        <td class="yellow">${String(entry.score).padStart(5, '0')}</td>
+                    `;
+                } else {
+                    // Pusty wiersz (placeholder) zachowujący stałą estetykę i wysokość tabeli
+                    tr.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td style="color: #444466;">---</td>
+                        <td style="color: #444466;">---</td>
+                        <td style="color: #444466;">00000</td>
+                    `;
+                }
                 tbody.appendChild(tr);
-                return;
             }
-
-            let idx = 0;
-            topScores.forEach((entry) => {
-                const tr = document.createElement('tr');
-                let userClass = 'cyan';
-                if (idx === 0) userClass = 'yellow';
-                else if (idx === 1) userClass = 'green';
-                else if (idx === 2) userClass = 'pink';
-
-                tr.innerHTML = `
-                    <td>${idx + 1}</td>
-                    <td class="${userClass}">${entry.username.toUpperCase()}</td>
-                    <td>${entry.wave}</td>
-                    <td class="yellow">${String(entry.score).padStart(5, '0')}</td>
-                `;
-                tbody.appendChild(tr);
-                idx++;
-            });
         } catch (err) {
             console.error("Error loading leaderboard:", err);
-            tbody.innerHTML = `<tr><td colspan="4" style="color: var(--neon-pink); padding: 2cqw 0;">BLAD WCZYTYWANIA DANYCH</td></tr>`;
+            tbody.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const tr = document.createElement('tr');
+                if (i === 2) {
+                    tr.innerHTML = `
+                        <td>3</td>
+                        <td colspan="3" style="color: var(--neon-red); font-size: 1.1cqw;">BLAD POLACZENIA</td>
+                    `;
+                } else {
+                    tr.innerHTML = `
+                        <td>${i + 1}</td>
+                        <td style="color: #444466;">---</td>
+                        <td style="color: #444466;">---</td>
+                        <td style="color: #444466;">00000</td>
+                    `;
+                }
+                tbody.appendChild(tr);
+            }
         }
     }
 
