@@ -1355,14 +1355,14 @@ export class Game {
                 this.ctx.fillStyle = '#ffffff';
                 this.ctx.font = '10px "Courier New", monospace';
                 this.ctx.textAlign = 'center';
-                this.ctx.fillText("STATEK MATKA - BOSS", 400, 15);
+                this.ctx.fillText("STATEK MATKA - BOSS", 400, 50);
 
                 this.ctx.strokeStyle = '#ffffff';
                 this.ctx.lineWidth = 1;
-                this.ctx.strokeRect(150, 20, 500, 12);
+                this.ctx.strokeRect(200, 56, 400, 10);
 
                 const hpPercent = boss.hp / boss.maxHp;
-                const fillWidth = 500 * hpPercent;
+                const fillWidth = 400 * hpPercent;
                 
                 let hpColor = '#00f3ff';
                 if (hpPercent < 0.3) {
@@ -1377,7 +1377,7 @@ export class Game {
                 this.ctx.fillStyle = hpColor;
                 this.ctx.shadowBlur = 8;
                 this.ctx.shadowColor = hpColor;
-                this.ctx.fillRect(150, 20, fillWidth, 12);
+                this.ctx.fillRect(200, 56, fillWidth, 10);
                 this.ctx.restore();
             }
 
@@ -1415,7 +1415,7 @@ export class Game {
                 this.ctx.fillStyle = modColor;
                 this.ctx.shadowBlur = 6;
                 this.ctx.shadowColor = modColor;
-                this.ctx.fillText(modText, 15, 20);
+                this.ctx.fillText(modText, 15, 58);
                 this.ctx.restore();
             }
 

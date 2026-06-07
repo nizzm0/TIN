@@ -175,7 +175,7 @@ body {
     z-index: 5;
     background: linear-gradient(to bottom, rgba(11, 15, 25, 0.95) 0%, rgba(11, 15, 25, 0) 100%);
     pointer-events: none;
-    font-size: 0.65rem;
+    font-size: 0.8rem;
 }
 
 .hud-item {
@@ -186,7 +186,7 @@ body {
 
 .hud-item .label {
     color: #8888aa;
-    font-size: 0.5rem;
+    font-size: 0.6rem;
     letter-spacing: 1px;
 }
 
@@ -207,8 +207,8 @@ body {
 }
 
 .live-indicator {
-    width: 14px;
-    height: 10px;
+    width: 18px;
+    height: 13px;
     background-color: var(--neon-green);
     clip-path: polygon(50% 0%, 100% 35%, 100% 100%, 0% 100%, 0% 35%);
     box-shadow: 0 0 4px var(--neon-green);
@@ -789,12 +789,12 @@ body {
 
     
     .hud {
-        padding: 8px 10px;
-        font-size: 0.5rem;
+        padding: 10px 12px;
+        font-size: 0.65rem;
     }
     
     .hud-item .label {
-        font-size: 0.4rem;
+        font-size: 0.5rem;
     }
 
     .btn-retro .btn-title {
