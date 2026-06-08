@@ -43,6 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
     const btnPauseDebugPanel = document.getElementById('btnPauseDebugPanel');
     const btnBackFromAdmin = document.getElementById('btnBackFromAdmin');
     const btnDbgMaxUpgrades = document.getElementById('btnDbgMaxUpgrades');
+    const btnDbgResetUpgrades = document.getElementById('btnDbgResetUpgrades');
     const btnDbgJumpWave = document.getElementById('btnDbgJumpWave');
 
     // Kontrolki debugowania
@@ -128,7 +129,12 @@ window.addEventListener('DOMContentLoaded', () => {
         if (dbgStartWave) dbgStartWave.value = localStorage.getItem('dbg_start_wave') || '1';
         if (dbgToggleGodMode) dbgToggleGodMode.checked = localStorage.getItem('dbg_god_mode') === 'true';
         if (dbgToggleInfCredits) dbgToggleInfCredits.checked = localStorage.getItem('dbg_inf_credits') === 'true';
-        if (dbgToggleAutofire) dbgToggleAutofire.checked = localStorage.getItem('dbg_autofire') === 'true';
+        
+        const autofireVal = localStorage.getItem('dbg_autofire') === 'true';
+        if (dbgToggleAutofire) dbgToggleAutofire.checked = autofireVal;
+        if (game && game.player) {
+            game.player.upgrades.autofire = autofireVal ? 1 : 0;
+        }
     }
     if (dbgStartWave) {
         dbgStartWave.addEventListener('change', (e) => {
@@ -152,6 +158,9 @@ window.addEventListener('DOMContentLoaded', () => {
     if (dbgToggleAutofire) {
         dbgToggleAutofire.addEventListener('change', (e) => {
             localStorage.setItem('dbg_autofire', e.target.checked);
+            if (game && game.player) {
+                game.player.upgrades.autofire = e.target.checked ? 1 : 0;
+            }
         });
     }
 
@@ -665,6 +674,37 @@ window.addEventListener('DOMContentLoaded', () => {
                 setTimeout(() => {
                     btnDbgMaxUpgrades.textContent = originalText;
                     btnDbgMaxUpgrades.disabled = false;
+                }, 1500);
+            }
+        });
+    }
+
+    // Resetowanie ulepszeń w panelu debugowania
+    if (btnDbgResetUpgrades) {
+        btnDbgResetUpgrades.addEventListener('click', () => {
+            if (game && game.player) {
+                game.player.upgrades = {
+                    fireRate: 0,
+                    speed: 0,
+                    bulletSpeed: 0,
+                    multiShot: 0,
+                    explosive: 0,
+                    autofire: 0,
+                    phaseLaser: 0
+                };
+                
+                // Reset stanu autostrzału w UI i localStorage
+                localStorage.setItem('dbg_autofire', 'false');
+                if (dbgToggleAutofire) dbgToggleAutofire.checked = false;
+                
+                audio.playExplosion('player');
+                
+                const originalText = btnDbgResetUpgrades.textContent;
+                btnDbgResetUpgrades.textContent = 'ZRESETOWANO!';
+                btnDbgResetUpgrades.disabled = true;
+                setTimeout(() => {
+                    btnDbgResetUpgrades.textContent = originalText;
+                    btnDbgResetUpgrades.disabled = false;
                 }, 1500);
             }
         });
