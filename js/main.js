@@ -131,9 +131,19 @@ window.addEventListener('DOMContentLoaded', () => {
         if (dbgToggleInfCredits) dbgToggleInfCredits.checked = localStorage.getItem('dbg_inf_credits') === 'true';
         
         const autofireVal = localStorage.getItem('dbg_autofire') === 'true';
-        if (dbgToggleAutofire) dbgToggleAutofire.checked = autofireVal;
         if (game && game.player) {
-            game.player.upgrades.autofire = autofireVal ? 1 : 0;
+            // Jeśli gracz ma już zakupiony autofire (w sklepie lub z max ulepszeń), zaznacz przełącznik w UI
+            if (game.player.upgrades.autofire > 0) {
+                if (dbgToggleAutofire) dbgToggleAutofire.checked = true;
+            } else {
+                // Jeśli nie ma zakupionego, synchronizuj z zapisanym stanem debugowania
+                if (dbgToggleAutofire) dbgToggleAutofire.checked = autofireVal;
+                if (autofireVal) {
+                    game.player.upgrades.autofire = 1;
+                }
+            }
+        } else {
+            if (dbgToggleAutofire) dbgToggleAutofire.checked = autofireVal;
         }
     }
     if (dbgStartWave) {
@@ -667,6 +677,10 @@ window.addEventListener('DOMContentLoaded', () => {
                     phaseLaser: 1
                 };
                 audio.playLevelUp();
+                
+                // Synchronizacja przełącznika UI i localStorage przy max ulepszeniach
+                localStorage.setItem('dbg_autofire', 'true');
+                if (dbgToggleAutofire) dbgToggleAutofire.checked = true;
                 
                 const originalText = btnDbgMaxUpgrades.textContent;
                 btnDbgMaxUpgrades.textContent = 'AKTYWOWANO!';
